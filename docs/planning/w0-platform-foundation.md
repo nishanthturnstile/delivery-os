@@ -159,5 +159,5 @@ validation, not permission to weaken or bypass the W0 gates.
 
 Implementation and test results are recorded in the
 [W0 validation record](../validation/w0-platform-foundation.md). Local gates, GitHub Actions run
-`30096034666`, and Railway validation passed on 2026-07-24. The owner accepted the recorded evidence
-and W0 is `Complete`.
+`30100403413` on merged `main`, and Railway validation passed on 2026-07-24. The owner accepted the
+recorded evidence and W0 is `Complete`.
