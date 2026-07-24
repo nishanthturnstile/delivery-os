@@ -11,8 +11,9 @@
 W0 is implemented and its local, GitHub CI, and Railway validation flows pass. The repository now
 contains the production boundaries, correctness kernel, provider shells, local services, CI gates,
 accessible browser harness, and operator documentation required by S0. The owner accepted the
-recorded evidence on 2026-07-24, and the roadmap now marks W0 `Complete`. Repository merge and
-production-provider setup remain post-completion operational work.
+recorded evidence on 2026-07-24, and the roadmap now marks W0 `Complete`. PR #1 is merged, and the
+Railway application services track `main`. Production-provider setup remains post-completion
+operational work.
 
 The implementation stayed within W0. Authentication, tenants, project workflows, production
 credentials, loaded OCR model artifacts, and later-wave product behavior were not introduced.
@@ -117,7 +118,7 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
 | Liveness differs from readiness | API/worker tests and live probes pass |
 | Correlation survives request to job | Integration assertion and live structured worker logs pass |
 | Injected secrets do not appear in logs | Adversarial captured-log tests pass |
-| S0 shared pipeline | Passed locally and in GitHub Actions run `30096034666` |
+| S0 shared pipeline | Passed locally and on merged `main` in GitHub Actions run `30100403413` |
 
 ## 7. Railway Validation Evidence
 
@@ -126,6 +127,9 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
 - Public web: <https://web-production-57ecb9.up.railway.app>
 - Private worker and OCR services; PostgreSQL 18 and Redis 8.8.0 use persistent volumes.
 - Web release: `144ab84`; worker release: `ab681c3`.
+- Web, worker, and OCR now source `mnishanth02/delivery-os` branch `main`. Their first
+  repository-linked deployments (`ddf39417`, `a5715e12`, and `eccb37aa`) built merge commit
+  `bf8274a` and reached terminal `SUCCESS`.
 - All five service deployments reached terminal `SUCCESS`.
 - `/api/health` and `/api/ready` passed; readiness reported PostgreSQL and Redis `up`.
 - A direct HTTPS probe and the post-restart/post-Redis-upgrade probes returned `201`; each outbox
@@ -139,22 +143,30 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
   container hostname. Setting `HOSTNAME=0.0.0.0` resolved it; the final deployment and restart both
   passed.
 
-GitHub evidence is [draft PR #1](https://github.com/mnishanth02/delivery-os/pull/1) and passing
-[Actions run 30096034666](https://github.com/mnishanth02/delivery-os/actions/runs/30096034666).
+GitHub evidence is [merged PR #1](https://github.com/mnishanth02/delivery-os/pull/1) and passing
+[post-merge Actions run 30100403413](https://github.com/mnishanth02/delivery-os/actions/runs/30100403413).
 
-## 8. Post-completion Operational Follow-up
+## 8. Post-completion Operational Status
 
 These actions do not block W0 completion but require repository administration, a later production
 release decision, or provider resources outside W0:
 
-1. Review and merge [draft PR #1](https://github.com/mnishanth02/delivery-os/pull/1), then require
-   the passing CI workflow on `main`.
-2. After merge, connect the Railway web, worker, and OCR service sources to
-   `mnishanth02/delivery-os` on `main`; the validated releases were intentionally uploaded from the
-   reviewed local branch so the incomplete `main` revision could not auto-deploy.
-3. Provision private staging R2 and Resend resources and add secrets through the platform secret
+Completed on 2026-07-24:
+
+- Merged [PR #1](https://github.com/mnishanth02/delivery-os/pull/1) into `main`; the post-merge CI
+  workflow passed.
+- Connected the Railway web, worker, and OCR services to `mnishanth02/delivery-os` on `main`.
+  Repository-linked deployments passed their health gates, and all four remote Playwright tests
+  passed afterward.
+
+Remaining:
+
+1. Enable `main` branch protection with pull requests, the five CI jobs, conversation resolution,
+   and force-push/deletion prevention. This needs a GitHub repository-admin session; the available
+   CLI identity can push and merge but cannot administer branch protection.
+2. Provision private staging R2 and Resend resources and add secrets through the platform secret
    manager. Do not enable Sentry/OTel export until a scrubbed endpoint is approved.
-4. Keep `APP_ENV=staging` while the diagnostic route is required. Change it to `production` only as
+3. Keep `APP_ENV=staging` while the diagnostic route is required. Change it to `production` only as
    part of an explicit production release after the route is no longer needed.
 
 OCR recognition intentionally returns `503` in W0. S4 must embed and evaluate the pinned
