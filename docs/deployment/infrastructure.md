@@ -143,8 +143,8 @@ W0 uses loopback-only ports chosen to avoid common workstation services:
 
 | Service | Local endpoint |
 | --- | --- |
-| Web | `http://127.0.0.1:3000` |
-| Worker health/readiness | `http://127.0.0.1:8080/health` and `/ready` |
+| Web | `http://127.0.0.1:53000` |
+| Worker health/readiness | `http://127.0.0.1:58080/health` and `/ready` |
 | PostgreSQL | `127.0.0.1:55432` |
 | Redis | `127.0.0.1:56379` |
 | MinIO API/console | `http://127.0.0.1:59000` / `http://127.0.0.1:59001` |
@@ -167,3 +167,43 @@ the supported R2 subset.
 All ports can be overridden by the corresponding variables in `compose.yaml`. Safe local
 application defaults are built in and mirrored by `.env.example`; production environments must
 provide validated non-local values.
+
+The web and worker ports are development-only, project-specific host assignments. Production
+containers continue to receive their platform-assigned `PORT`. In VS Code Remote SSH, the
+repository configuration automatically forwards `53000` to the same loopback port on the local
+computer and ignores unrelated detected ports. Press `F5` and select
+**Delivery OS: debug (full stack)** to prepare dependencies, start both hot-reload processes, and
+open the locally forwarded app.
+
+## 8. W0 Railway Validation Deployment
+
+The W0 validation deployment was created on 2026-07-24 in `muthurema's Projects`:
+
+- Project: [delivery-os](https://railway.com/project/d3b8b065-7605-41d2-a844-4625d527b0c2)
+- Environment: Railway's single default `production` environment, with application mode
+  `APP_ENV=staging` until the owner promotion gate is approved.
+- Public web: <https://web-production-57ecb9.up.railway.app>
+- Private services: worker and OCR; neither has a public domain.
+- Data services: Railway PostgreSQL 18 and exact `redis:8.8.0-alpine`, both with persistent
+  volumes.
+- Application release: web `144ab84`, worker `ab681c3`; OCR has no source delta from its validated
+  deployment.
+
+The checked-in migration was applied twice through the PostgreSQL public release connection and was
+idempotent. Web readiness verified PostgreSQL and Redis over Railway private networking. The
+transactional probe returned `201`; the worker dispatched and processed its outbox event once.
+Restarting web and worker retained the previously committed event and processed a new event once.
+The worker also recovered from a deliberate Redis 8.8.0 restart, processed the next event once, and
+emitted no raw error-level connection stacks.
+
+Remote browser verification is reproducible with:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://web-production-57ecb9.up.railway.app pnpm test:e2e
+```
+
+The validation environment intentionally uses `APP_ENV=staging` because the diagnostic platform
+probe is denied in approved production mode. W0 is complete; keep this setting until the diagnostic
+route is no longer required and an explicit production promotion is scheduled. After PR #1 is
+merged, connect the web, worker, and OCR sources to `mnishanth02/delivery-os` on `main`; the evidence
+release used controlled local uploads to avoid deploying the older `main` revision.

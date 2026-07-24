@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Delivery OS: web",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm --filter @delivery-os/web dev --inspect=127.0.0.1:59300",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "- Local:\\s+(http://127\\.0\\.0\\.1:53000)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      },
+      "presentation": {
+        "group": "delivery-os",
+        "order": 1
+      }
+    },
+    {
+      "name": "Delivery OS: worker",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm --filter @delivery-os/worker dev",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "group": "delivery-os",
+        "order": 2
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Delivery OS: debug (full stack)",
+      "configurations": ["Delivery OS: web", "Delivery OS: worker"],
+      "preLaunchTask": "Delivery OS: prepare runtime",
+      "stopAll": true,
+      "presentation": {
+        "group": "delivery-os",
+        "order": 1
+      }
+    }
+  ]
+}

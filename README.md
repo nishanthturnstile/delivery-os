@@ -20,16 +20,28 @@ docker compose up -d postgres redis minio minio-init mailpit clamav
 pnpm db:migrate
 ```
 
-Start the worker and web app in separate terminals:
+Start the complete hot-reload development runtime:
 
 ```bash
-pnpm worker
-pnpm web
+pnpm dev
 ```
 
-Open <http://127.0.0.1:3000> and run the platform check. Local service ports and optional OCR
-startup are documented in
-[Infrastructure and Deployment](docs/deployment/infrastructure.md#11-local-w0-runtime).
+The web app uses the Delivery OS-specific loopback port `53000`; the worker uses `58080`. Open
+<http://127.0.0.1:53000> and run the platform check. Local service ports and optional OCR startup
+are documented in
+[Infrastructure and Deployment](docs/deployment/infrastructure.md#7-local-w0-runtime).
+
+When this folder is open through VS Code Remote SSH, press `F5` and select **Delivery OS: debug
+(full stack)**. VS Code prepares the containers and database, starts the web and worker watchers,
+forwards only the web port to the same port on the local computer, and opens a local Chrome
+debugging session. No additional tunnel utility or public listener is required.
+
+To run only one process from the integrated terminal:
+
+```bash
+pnpm web
+pnpm worker
+```
 
 ## Validation
 
@@ -40,6 +52,14 @@ TEST_DATABASE_URL=postgresql://delivery_os:delivery_os_local@127.0.0.1:55432/del
 TEST_DATABASE_URL=postgresql://delivery_os:delivery_os_local@127.0.0.1:55432/delivery_os pnpm test:coverage
 pnpm test:e2e
 ```
+
+Run the same browser and accessibility specification against an already deployed environment with:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://your-web-domain.example pnpm test:e2e
+```
+
+When `PLAYWRIGHT_BASE_URL` is set, Playwright does not start the local Next.js development server.
 
 Production provider export is disabled by default. Copy `.env.example` only when overriding the safe
 local defaults; never commit a populated environment file.

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
-    "dev": "tsx watch src/main.ts",
+    "dev": "WORKER_HOST=127.0.0.1 PORT=58080 tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

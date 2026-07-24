@@ -9,5 +9,6 @@ node_modules/
 playwright-report/
 test-results/
 *.log
+*.tsbuildinfo
 packages/database/.drizzle-test/
 services/ocr/.cache/
