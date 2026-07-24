@@ -1,0 +1,22 @@
+FROM node:24.18.0-trixie-slim AS build
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @delivery-os/web build
+RUN rm -rf \
+    apps/web/.next/standalone/node_modules/.pnpm/@img+* \
+    apps/web/.next/standalone/node_modules/.pnpm/sharp@* \
+    apps/web/.next/standalone/node_modules/.pnpm/node_modules/@img \
+    apps/web/.next/standalone/node_modules/.pnpm/node_modules/sharp \
+    apps/web/.next/standalone/node_modules/@img \
+    apps/web/.next/standalone/node_modules/sharp
+
+FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:af85d11ce7ef10172855a6e3649e3e8125b1b9e3ca41849ec2918036f05cb212 AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --chown=65532:65532 --from=build /app/apps/web/.next/standalone ./
+COPY --chown=65532:65532 --from=build /app/apps/web/.next/static ./apps/web/.next/static
+USER 65532:65532
+EXPOSE 3000
+CMD ["apps/web/server.js"]

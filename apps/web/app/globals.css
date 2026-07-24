@@ -1,0 +1,31 @@
+@import '@delivery-os/ui/styles.css';
+@source "../../../packages/ui/src";
+
+.app-shell {
+  isolation: isolate;
+}
+
+.foundation-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklch, var(--border-default) 42%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--border-default) 42%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 78%);
+}
+
+.trace-line {
+  background: linear-gradient(
+    90deg,
+    var(--action-primary),
+    var(--trace-accent),
+    color-mix(in oklch, var(--trace-accent) 15%, transparent)
+  );
+}

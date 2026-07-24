@@ -3,6 +3,7 @@
 **Status:** Executable implementation plan
 **Parents:** [Product Plan](../core/product-plan.md), [Domain Model & Workflows](../core/domain-workflows.md), [Architecture & Contracts](../core/architecture-contracts.md)
 **Gates:** [Pilot Scope](pilot-scope.md), [AI, Security & Evaluation](../assurance/ai-security-evaluation.md)
+**Module execution view:** [Module-Wise Implementation Roadmap](implementation-roadmap.md)
 
 This backlog sequences implementation by dependency. It is not the LVD framework that Delivery OS applies to customer projects. Each slice must pass its acceptance criteria before dependent slices begin, except tasks explicitly marked parallel.
 
@@ -46,6 +47,8 @@ S0 Foundation
 
 **Depends on:** none
 **Requirements:** NFR-03, NFR-06, NFR-12, NFR-13; FR-CC-01–03, 16–17
+**Implementation status:** `In Validation` — [finalized plan](w0-platform-foundation.md) and
+[local evidence](../validation/w0-platform-foundation.md)
 
 Deliver:
 

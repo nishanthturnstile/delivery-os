@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated and dependency output is excluded from source scans."
+paths = [
+  '''(^|/)\.next/''',
+  '''(^|/)\.turbo/''',
+  '''(^|/)coverage/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)playwright-report/''',
+  '''(^|/)test-results/''',
+]

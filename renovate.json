@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "dependencyDashboard": true,
+  "extends": ["config:best-practices", ":pinAllExceptPeerDependencies"],
+  "minimumReleaseAge": "1 day",
+  "packageRules": [
+    {
+      "description": "Keep the Node LTS and pnpm toolchain reviewed together",
+      "groupName": "platform toolchain",
+      "matchPackageNames": ["node", "pnpm"]
+    },
+    {
+      "description": "Keep React and Next.js on one reviewed compatible line",
+      "groupName": "web runtime",
+      "matchPackageNames": ["next", "react", "react-dom", "eslint-config-next"]
+    }
+  ],
+  "schedule": ["before 6am every weekday"],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  }
+}

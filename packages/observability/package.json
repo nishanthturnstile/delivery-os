@@ -1,0 +1,23 @@
+{
+  "name": "@delivery-os/observability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@delivery-os/contracts": "workspace:*",
+    "@opentelemetry/api": "catalog:",
+    "pino": "catalog:",
+    "prom-client": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

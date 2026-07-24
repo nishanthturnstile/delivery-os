@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: delivery_os
+          POSTGRES_PASSWORD: delivery_os_local
+          POSTGRES_USER: delivery_os
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U delivery_os -d delivery_os" --health-interval 5s
+          --health-timeout 3s --health-retries 12
+      redis:
+        image: redis:8.8.0-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      APP_ENV: test
+      APP_VERSION: ${{ github.sha }}
+      DATABASE_URL: postgresql://delivery_os:delivery_os_local@127.0.0.1:5432/delivery_os
+      REDIS_URL: redis://127.0.0.1:6379
+      TEST_DATABASE_URL: postgresql://delivery_os:delivery_os_local@127.0.0.1:5432/delivery_os
+      TELEMETRY_EXPORT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.17.0
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm check:dependencies
+      - run: pnpm check:docs
+      - run: pnpm test:coverage
+      - run: pnpm test:migrations
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+
+  container-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: delivery-os-web
+            dockerfile: Dockerfile.web
+            context: .
+          - image: delivery-os-worker
+            dockerfile: Dockerfile.worker
+            context: .
+          - image: delivery-os-ocr
+            dockerfile: Dockerfile
+            context: services/ocr
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true
+          push: false
+          tags: ${{ matrix.image }}:${{ github.sha }}
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true

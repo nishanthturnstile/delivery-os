@@ -1,0 +1,127 @@
+name: delivery-os
+
+services:
+  postgres:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_DB: delivery_os
+      POSTGRES_PASSWORD: delivery_os_local
+      POSTGRES_USER: delivery_os
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-55432}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U delivery_os -d delivery_os']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  redis:
+    image: redis:8.8.0-alpine
+    command: ['redis-server', '--appendonly', 'yes', '--save', '60', '1']
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-56379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - redis-data:/data
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_PASSWORD: delivery_os_local_secret
+      MINIO_ROOT_USER: delivery_os_local
+    ports:
+      - '127.0.0.1:${MINIO_API_PORT:-59000}:9000'
+      - '127.0.0.1:${MINIO_CONSOLE_PORT:-59001}:9001'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z-cpuv1
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local http://minio:9000 delivery_os_local delivery_os_local_secret
+        mc mb --ignore-existing local/delivery-os
+        mc version suspend local/delivery-os || true
+        mc anonymous set none local/delivery-os
+    restart: 'no'
+
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: '500'
+    ports:
+      - '127.0.0.1:${MAILPIT_SMTP_PORT:-51025}:1025'
+      - '127.0.0.1:${MAILPIT_UI_PORT:-58025}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - mailpit-data:/data
+
+  clamav:
+    image: clamav/clamav:1.5.3
+    ports:
+      - '127.0.0.1:${CLAMAV_PORT:-53310}:3310'
+    healthcheck:
+      test: ['CMD-SHELL', "printf 'PING\\n' | nc 127.0.0.1 3310 | grep PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+
+  ocr:
+    profiles: ['ocr']
+    build:
+      context: ./services/ocr
+      dockerfile: Dockerfile
+    environment:
+      OCR_MODEL_VERSION: PP-StructureV3@paddleocr-3.7.0
+      OCR_RECOGNITION_ENABLED: 'false'
+      OCR_SERVICE_TOKEN: delivery_os_ocr_local
+    ports:
+      - '127.0.0.1:${OCR_PORT:-58081}:8080'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  clamav-signatures:
+  mailpit-data:
+  minio-data:
+  postgres-data:
+  redis-data:

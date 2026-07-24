@@ -133,4 +133,37 @@ Alert on:
 - Authentication/OAuth abuse.
 - Purge lag and restore/backup failure.
 
-Runbooks must cover R2 credential compromise, missing/corrupt object, failed promotion, backup restore, OCR crash/saturation/bad model rollback, stuck queue, database restore, email outage, OAuth compromise, and accidental deletion.
+Runbooks must cover missing/corrupt objects, failed promotion, backup restore, OCR
+crash/saturation/bad model rollback, stuck queues, database restore, email outage, OAuth
+compromise, accidental deletion, and response when R2 access is compromised.
+
+## 7. Local W0 Runtime
+
+W0 uses loopback-only ports chosen to avoid common workstation services:
+
+| Service | Local endpoint |
+| --- | --- |
+| Web | `http://127.0.0.1:3000` |
+| Worker health/readiness | `http://127.0.0.1:8080/health` and `/ready` |
+| PostgreSQL | `127.0.0.1:55432` |
+| Redis | `127.0.0.1:56379` |
+| MinIO API/console | `http://127.0.0.1:59000` / `http://127.0.0.1:59001` |
+| Mailpit SMTP/UI | `127.0.0.1:51025` / `http://127.0.0.1:58025` |
+| ClamAV | `127.0.0.1:53310` |
+| Optional OCR | `http://127.0.0.1:58081` |
+
+Start the required dependencies with:
+
+```bash
+docker compose up -d postgres redis minio minio-init mailpit clamav
+pnpm db:migrate
+```
+
+The OCR boundary is available with `docker compose --profile ocr up -d ocr`. Its health and
+readiness endpoints run without downloading a model at startup; `/v1/recognize` remains disabled
+until the S4 model-artifact gate. The local bucket is private and has versioning suspended to match
+the supported R2 subset.
+
+All ports can be overridden by the corresponding variables in `compose.yaml`. Safe local
+application defaults are built in and mirrored by `.env.example`; production environments must
+provide validated non-local values.

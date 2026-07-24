@@ -1,0 +1,129 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-ibm-plex-mono);
+  --color-background: var(--surface-canvas);
+  --color-foreground: var(--content-primary);
+  --color-primary: var(--action-primary);
+  --color-border: var(--border-default);
+  --radius-sm: var(--radius-control);
+  --radius-lg: var(--radius-panel);
+}
+
+:root {
+  color-scheme: light;
+  --surface-canvas: oklch(0.975 0.008 275);
+  --surface-panel: oklch(0.998 0.002 270);
+  --surface-raised: oklch(1 0 0);
+  --surface-overlay: oklch(0.995 0.004 275);
+  --surface-inset: oklch(0.955 0.012 275);
+  --content-primary: oklch(0.21 0.035 276);
+  --content-secondary: oklch(0.43 0.03 276);
+  --content-muted: oklch(0.57 0.022 276);
+  --content-inverse: oklch(0.985 0.004 275);
+  --content-link: oklch(0.47 0.2 274);
+  --action-primary: oklch(0.49 0.24 276);
+  --action-primary-hover: oklch(0.43 0.245 276);
+  --trace-accent: oklch(0.68 0.15 205);
+  --border-default: oklch(0.88 0.018 275);
+  --border-strong: oklch(0.76 0.03 275);
+  --focus-ring: oklch(0.61 0.22 269);
+  --state-info-soft: oklch(0.94 0.04 245);
+  --state-info-border: oklch(0.76 0.09 245);
+  --state-info-strong: oklch(0.4 0.15 251);
+  --state-success: oklch(0.55 0.14 158);
+  --state-success-soft: oklch(0.95 0.04 158);
+  --state-success-border: oklch(0.78 0.1 158);
+  --state-success-strong: oklch(0.37 0.11 158);
+  --state-warning-soft: oklch(0.96 0.06 82);
+  --state-warning-border: oklch(0.8 0.12 82);
+  --state-warning-strong: oklch(0.42 0.12 68);
+  --state-danger: oklch(0.55 0.2 25);
+  --state-danger-strong: oklch(0.48 0.21 25);
+  --state-danger-soft: oklch(0.95 0.04 25);
+  --state-danger-border: oklch(0.78 0.11 25);
+  --state-review-soft: oklch(0.95 0.04 305);
+  --state-review-border: oklch(0.79 0.1 305);
+  --state-review-strong: oklch(0.43 0.14 305);
+  --audience-team: oklch(0.54 0.13 264);
+  --audience-client: oklch(0.55 0.13 185);
+  --provenance-ai: oklch(0.55 0.16 305);
+  --provenance-human: oklch(0.52 0.12 145);
+  --radius-control: 0.375rem;
+  --radius-panel: 0.625rem;
+  --shadow-action: 0 1px 2px oklch(0.25 0.08 276 / 18%);
+  --motion-fast: 120ms;
+  --motion-enter: 180ms;
+}
+
+.dark {
+  color-scheme: dark;
+  --surface-canvas: oklch(0.17 0.025 276);
+  --surface-panel: oklch(0.205 0.028 276);
+  --surface-raised: oklch(0.235 0.03 276);
+  --surface-overlay: oklch(0.23 0.03 276);
+  --surface-inset: oklch(0.15 0.023 276);
+  --content-primary: oklch(0.94 0.012 275);
+  --content-secondary: oklch(0.76 0.023 275);
+  --content-muted: oklch(0.62 0.022 275);
+  --content-inverse: oklch(0.16 0.025 276);
+  --content-link: oklch(0.76 0.14 265);
+  --action-primary: oklch(0.7 0.18 272);
+  --action-primary-hover: oklch(0.76 0.16 270);
+  --trace-accent: oklch(0.77 0.13 200);
+  --border-default: oklch(0.31 0.035 276);
+  --border-strong: oklch(0.42 0.045 276);
+  --focus-ring: oklch(0.76 0.16 268);
+  --state-info-soft: oklch(0.27 0.07 250);
+  --state-info-border: oklch(0.47 0.1 250);
+  --state-info-strong: oklch(0.84 0.08 245);
+  --state-success-soft: oklch(0.25 0.055 158);
+  --state-success-border: oklch(0.46 0.09 158);
+  --state-success-strong: oklch(0.82 0.1 158);
+  --state-warning-soft: oklch(0.27 0.06 75);
+  --state-warning-border: oklch(0.5 0.1 75);
+  --state-warning-strong: oklch(0.88 0.11 82);
+  --state-danger-soft: oklch(0.27 0.065 25);
+  --state-danger-border: oklch(0.5 0.12 25);
+  --state-danger-strong: oklch(0.86 0.1 25);
+  --state-review-soft: oklch(0.27 0.06 305);
+  --state-review-border: oklch(0.48 0.1 305);
+  --state-review-strong: oklch(0.85 0.1 305);
+}
+
+* {
+  border-color: var(--border-default);
+}
+
+html {
+  background: var(--surface-canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  position: relative;
+  background: var(--surface-canvas);
+  color: var(--content-primary);
+  font-family: var(--font-manrope), sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--action-primary) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

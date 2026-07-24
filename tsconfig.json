@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2024"],
+    "types": ["node"]
+  },
+  "include": [
+    "eslint.config.mjs",
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "tests/**/*.ts"
+  ]
+}

@@ -12,6 +12,9 @@ For product or implementation work, read:
 4. [Design System](core/design-system.md) — UI component layers, visual principles, accessibility, and governance.
 5. [Development Guidelines](core/development-guidelines.md) — coding, testing, AI-assisted implementation, and documentation rules.
 6. [Delivery Backlog](planning/delivery-backlog.md) — dependency-ordered implementation slices and acceptance criteria.
+7. [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md) — living module status, dependency waves, exit gates, and evidence tracking.
+
+Current implementation evidence: [W0 Platform Foundation validation](validation/w0-platform-foundation.md).
 
 Before pilot or production changes, also read [Pilot Scope & Readiness](planning/pilot-scope.md), [AI, Security & Evaluation](assurance/ai-security-evaluation.md), and [Infrastructure & Deployment](deployment/infrastructure.md).
 
@@ -21,6 +24,7 @@ Before pilot or production changes, also read [Pilot Scope & Readiness](planning
 docs/
   core/          Stable normative product and engineering contracts
   planning/      Evolving scope, sequencing, and readiness plans
+  validation/    Implementation results, test evidence, and external follow-up
   assurance/     Security, privacy, AI quality, and verification gates
   deployment/    Environment, provider, backup, and operational configuration
   research/      Evidence and alternatives behind accepted decisions
@@ -39,6 +43,9 @@ docs/
 
 - [Controlled Pilot Scope & Readiness](planning/pilot-scope.md)
 - [Delivery Backlog & Traceability](planning/delivery-backlog.md)
+- [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md)
+- [W0 Platform Foundation Plan](planning/w0-platform-foundation.md)
+- [W0 Platform Foundation Validation](validation/w0-platform-foundation.md)
 - [AI, Security & Evaluation](assurance/ai-security-evaluation.md)
 - [Infrastructure & Deployment](deployment/infrastructure.md)
 
