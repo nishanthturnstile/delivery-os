@@ -146,9 +146,12 @@ These actions require owner approval or provider resources outside W0:
 
 1. Review and merge [draft PR #1](https://github.com/mnishanth02/delivery-os/pull/1), then require
    the passing CI workflow on `main`.
-2. Provision private staging R2 and Resend resources and add secrets through the platform secret
+2. After merge, connect the Railway web, worker, and OCR service sources to
+   `mnishanth02/delivery-os` on `main`; the validated releases were intentionally uploaded from the
+   reviewed local branch so the incomplete `main` revision could not auto-deploy.
+3. Provision private staging R2 and Resend resources and add secrets through the platform secret
    manager. Do not enable Sentry/OTel export until a scrubbed endpoint is approved.
-3. Complete engineering/security owner review, change `APP_ENV` from `staging` to `production` when
+4. Complete engineering/security owner review, change `APP_ENV` from `staging` to `production` when
    appropriate, then promote W0 from `In Validation` to `Complete`.
 
 OCR recognition intentionally returns `503` in W0. S4 must embed and evaluate the pinned

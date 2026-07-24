@@ -195,4 +195,6 @@ PLAYWRIGHT_BASE_URL=https://web-production-57ecb9.up.railway.app pnpm test:e2e
 
 The validation environment intentionally uses `APP_ENV=staging` because the diagnostic platform
 probe is denied in approved production mode. Change it to `production` only when the W0 owner gate
-is complete and the diagnostic route is no longer required.
+is complete and the diagnostic route is no longer required. After PR #1 is merged, connect the web,
+worker, and OCR sources to `mnishanth02/delivery-os` on `main`; the evidence release used controlled
+local uploads to avoid deploying the older `main` revision.
