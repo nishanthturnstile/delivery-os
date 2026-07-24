@@ -1,0 +1,136 @@
+# Infrastructure and Deployment
+
+**Status:** Normative environment and provider specification
+**Parents:** [Architecture & Contracts](../core/architecture-contracts.md), [Pilot Scope](../planning/pilot-scope.md)
+**Related:** [OCR Evaluation](../research/ocr-evaluation.md), [AI/Security Evaluation](../assurance/ai-security-evaluation.md)
+
+## 1. Environment Matrix
+
+| Capability | Local | Preview/Staging | Production pilot |
+|---|---|---|---|
+| Web/API/MCP | Next.js process | Railway service | Railway service |
+| Worker | Node process | Railway service | Railway service |
+| OCR | Docker Compose PaddleOCR service | Private Railway service | Private Railway service |
+| Database | PostgreSQL container | Railway PostgreSQL | Railway PostgreSQL |
+| Queue/cache | Redis container | Railway Redis | Railway Redis |
+| Object store | MinIO, private bucket | Dedicated non-production Cloudflare R2 bucket | Dedicated private Cloudflare R2 bucket |
+| Email | Local mail capture/fake | Resend test/staging configuration | Resend production configuration |
+| Telemetry | Local logs; outbound disabled | Scrubbed Sentry/OTel | Scrubbed Sentry/OTel |
+
+Production data must never enter local, preview, fixtures, logs, or evaluation datasets.
+
+## 2. Object Storage
+
+### 2.1 Supported adapter subset
+
+Delivery OS uses only:
+
+- Head/list objects.
+- Single/multipart put.
+- Get/range get.
+- Copy object.
+- Delete one/many.
+- Multipart create/upload/list/complete/abort.
+- Lifecycle configuration for incomplete/disposable objects.
+- Signature V4 presigned GET/PUT.
+
+Do not use bucket policies, ACLs, S3 bucket versioning, S3 Object Lock, SSE-KMS, replication, or unsupported object tagging. [Cloudflare’s compatibility table](https://developers.cloudflare.com/r2/api/s3/api/) is authoritative for R2 support and must be rechecked during provider upgrades.
+
+### 2.2 Production R2
+
+- Private bucket; no `r2.dev` public access and no public custom domain.
+- Use Standard storage for pilot source/quarantine objects.
+- Use the required jurisdictional endpoint when residency applies. Cloudflare location hints are best-effort; [jurisdictional restrictions](https://developers.cloudflare.com/r2/reference/data-location/) are the residency control.
+- R2 automatically encrypts all objects/metadata at rest with AES-256 and uses TLS in transit per [R2 data security](https://developers.cloudflare.com/r2/reference/data-security/).
+- Runtime token: Object Read & Write for the exact application bucket only.
+- Backup token: write/read only for the backup bucket; not available to web.
+- Operational token: lifecycle/bucket administration, stored separately and used only by controlled jobs/runbooks.
+- Presigned URLs are bearer credentials. Use generated immutable keys, short expiry, exact operation, and post-upload metadata/hash verification. R2 supports Signature V4 presigned GET/PUT as documented in [Presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/).
+
+### 2.3 Key and retention model
+
+```text
+quarantine/{workspaceId}/{projectId}/{sourceId}/{generationId}
+sources/{workspaceId}/{projectId}/{sourceId}/{generationId}
+exports/{workspaceId}/{projectId}/{exportId}/{snapshotHash}
+purge-receipts/{workspaceId}/{purgeId}
+```
+
+- Keys are opaque/generated and never reused.
+- Promotion copies quarantine to a new source key, verifies it, then deletes quarantine.
+- Replacements create a new generation and manifest row.
+- Recoverable deletion denies access but retains keys for 30 days.
+- Purge enumerates the manifest, deletes every key, verifies absence, and writes a non-content receipt.
+- Lifecycle rules abort incomplete multipart uploads and remove disposable exports; they do not implement source recovery.
+
+R2 does not provide S3 bucket versioning, so a database manifest plus immutable keys is mandatory. MinIO contract tests run with versioning disabled to prevent false local parity.
+
+### 2.4 Backup and restore
+
+- Daily database backup and daily object-manifest snapshot.
+- Copy newly committed immutable keys to a separate backup bucket/path with credentials unavailable to the application.
+- Daily integrity check samples manifest SHA-256 against primary/backup objects.
+- Backup retention must meet the documented RPO and deletion-aging schedule.
+- Restore into an isolated environment: database first, validate manifests, restore missing primary objects from backup, then run cross-tenant/audience and sample-download checks.
+- Quarterly pilot restore drill must meet RTO ≤ 8 hours and RPO ≤ 24 hours.
+
+Because R2 lacks object lock/versioning, the backup bucket is protected by credential separation and operational process, not claimed as WORM storage.
+
+## 3. OCR Service
+
+- Build from a pinned Python/PaddleOCR base with PP-StructureV3 model artifacts embedded by digest.
+- Generate and retain an SBOM containing OS, Python, PaddlePaddle, PaddleOCR, model, and font/rendering dependencies.
+- Run as a non-root user with read-only root filesystem and bounded temporary storage.
+- Deny Internet egress and all database/Redis/R2/MinIO credentials.
+- Expose only a private authenticated health endpoint and versioned recognition endpoint.
+- Configure CPU/memory/request/page/pixel/time/concurrency limits. Start CPU-first; GPU requires a separate measured ADR.
+- Worker renders pages and sends bytes; the service never fetches an object URL.
+- Deployment health includes model loaded/readiness; liveness checks only process health.
+- Roll forward/back by immutable image digest. Never download “latest” models at runtime.
+
+Local Compose includes the same API/image with development resource limits. Fixture and contract tests run before staging promotion; the gates are in [OCR Evaluation](../research/ocr-evaluation.md#6-promotion-gates).
+
+## 4. Configuration
+
+Validate typed environment configuration at startup. Required groups include:
+
+- Application/base URLs, environment, build/version.
+- PostgreSQL and Redis connections.
+- Storage provider, R2/MinIO endpoint, region (`auto` for R2), bucket, access key, secret, jurisdiction, presign expiries, quotas.
+- OCR internal URL, service credential, model/config version, page/pixel/time/concurrency limits.
+- Better Auth keys/URLs, email provider, OAuth issuer/audience.
+- Resend keys/webhook secret and sender identity.
+- Sentry/OTel endpoints, sampling, and explicit export enablement.
+- Retention, backup bucket, and operational job settings.
+
+Production refuses local/default credentials, public object endpoints, missing webhook secrets, unpinned OCR versions, wildcard CORS, or outbound telemetry without scrub configuration.
+
+## 5. Deployment Sequence
+
+1. Build, scan, sign/identify web, worker, and OCR images/artifacts.
+2. Run unit, integration, contract, migration, UI accessibility, and OCR fixture gates.
+3. Back up database/manifests; verify R2/backup credentials and capacity.
+4. Apply checked-in migrations as an explicit release step.
+5. Deploy OCR and worker; verify readiness and queue pause.
+6. Deploy web/API; run health, auth, tenant, storage, and MCP smoke tests.
+7. Resume queues gradually and observe age/errors/OCR saturation.
+8. Run a synthetic upload → scan → OCR → citation check.
+9. Record deployment evidence and rollback target.
+
+Application startup never applies production migrations or downloads models.
+
+## 6. Alerts and Runbooks
+
+Alert on:
+
+- HTTP/MCP error and latency.
+- Database pool and migration mismatch.
+- Queue age, retries, and dead letters.
+- R2 upload/get/delete/hash/inventory failures.
+- Primary/backup manifest divergence.
+- OCR readiness, saturation, timeout, crash, low-confidence, and malformed output.
+- Email bounce/complaint and invalid webhooks.
+- Authentication/OAuth abuse.
+- Purge lag and restore/backup failure.
+
+Runbooks must cover R2 credential compromise, missing/corrupt object, failed promotion, backup restore, OCR crash/saturation/bad model rollback, stuck queue, database restore, email outage, OAuth compromise, and accidental deletion.
