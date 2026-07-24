@@ -155,9 +155,10 @@ async function handleHealthRequest(
 
 function startHealthServer(): Server {
   const port = Number.parseInt(process.env.PORT ?? '8080', 10);
+  const host = process.env.WORKER_HOST ?? '0.0.0.0';
   return createServer((request, response) => {
     void handleHealthRequest(request, response);
-  }).listen(port);
+  }).listen(port, host);
 }
 
 const healthServer = startHealthServer();
@@ -168,7 +169,13 @@ const dispatchTimer = setInterval(() => {
 }, 1_000);
 dispatchTimer.unref();
 await dispatchPending();
-logger.info({ port: process.env.PORT ?? '8080' }, 'worker started');
+logger.info(
+  {
+    host: process.env.WORKER_HOST ?? '0.0.0.0',
+    port: process.env.PORT ?? '8080',
+  },
+  'worker started',
+);
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'worker stopping');

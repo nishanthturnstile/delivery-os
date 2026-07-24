@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0 && node scripts/check-boundaries.mjs",
@@ -26,7 +26,7 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:dependencies && pnpm check:docs && pnpm test && pnpm build",
     "db:generate": "pnpm --filter @delivery-os/database db:generate",
     "db:migrate": "pnpm --filter @delivery-os/database db:migrate",
-    "worker": "pnpm --filter @delivery-os/worker start",
+    "worker": "WORKER_HOST=127.0.0.1 PORT=58080 pnpm --filter @delivery-os/worker start",
     "web": "pnpm --filter @delivery-os/web dev"
   },
   "devDependencies": {
