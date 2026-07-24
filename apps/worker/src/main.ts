@@ -54,6 +54,9 @@ const redis = new Redis(config.REDIS_URL, {
   enableReadyCheck: true,
   maxRetriesPerRequest: null,
 });
+redis.on('error', (error) => {
+  logger.warn({ err: error }, 'worker Redis connection interrupted');
+});
 const queue = new Queue<OutboxJob>('outbox.dispatch', { connection: redis });
 
 async function dispatchPending(): Promise<void> {
