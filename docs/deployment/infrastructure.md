@@ -179,13 +179,15 @@ The W0 validation deployment was created on 2026-07-24 in `muthurema's Projects`
 - Private services: worker and OCR; neither has a public domain.
 - Data services: Railway PostgreSQL 18 and exact `redis:8.8.0-alpine`, both with persistent
   volumes.
-- Application release: web and worker `144ab84`; OCR has no source delta from its validated
+- Application release: web `144ab84`, worker `ab681c3`; OCR has no source delta from its validated
   deployment.
 
 The checked-in migration was applied twice through the PostgreSQL public release connection and was
 idempotent. Web readiness verified PostgreSQL and Redis over Railway private networking. The
 transactional probe returned `201`; the worker dispatched and processed its outbox event once.
 Restarting web and worker retained the previously committed event and processed a new event once.
+The worker also recovered from a deliberate Redis 8.8.0 restart, processed the next event once, and
+emitted no raw error-level connection stacks.
 
 Remote browser verification is reproducible with:
 

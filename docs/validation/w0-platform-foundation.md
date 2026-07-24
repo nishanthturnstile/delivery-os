@@ -125,11 +125,13 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
 - Single environment: Railway `production`; application mode remains `staging` for validation.
 - Public web: <https://web-production-57ecb9.up.railway.app>
 - Private worker and OCR services; PostgreSQL 18 and Redis 8.8.0 use persistent volumes.
-- Web/worker release: `144ab84`.
+- Web release: `144ab84`; worker release: `ab681c3`.
 - All five service deployments reached terminal `SUCCESS`.
 - `/api/health` and `/api/ready` passed; readiness reported PostgreSQL and Redis `up`.
 - A direct HTTPS probe and the post-restart/post-Redis-upgrade probes returned `201`; each outbox
   event reached `DISPATCHED` with one durable processed-event record.
+- The worker recovered from a deliberate Redis 8.8.0 restart, processed the next probe once, and
+  reported zero error-level entries after its structured Redis interruption handler was deployed.
 - Private OCR readiness reported PP-StructureV3/PaddleOCR 3.7.0 with recognition disabled.
   Unauthenticated recognition returned `401`; authenticated recognition returned the intentional
   W0 `503`.
