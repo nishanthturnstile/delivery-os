@@ -1,6 +1,6 @@
 # W0 Platform Foundation — Validation Record
 
-**Status:** Local, GitHub CI, and Railway validation passed; owner review/promotion pending
+**Status:** Complete — local, GitHub CI, and Railway validation passed
 **Date:** 2026-07-24
 **Owner:** Platform
 **Plan:** [W0 execution packet](../planning/w0-platform-foundation.md)
@@ -8,11 +8,11 @@
 
 ## 1. Outcome
 
-W0 is implemented and its local and Railway validation flows pass. The repository now contains the production
-boundaries, correctness kernel, provider shells, local services, CI gates, accessible browser
-harness, and operator documentation required by S0. The roadmap is `In Validation`, rather than
-`Complete`, until draft PR #1 is reviewed/merged and the engineering/security owner approves
-promotion. GitHub CI and Railway deployment evidence are now recorded below.
+W0 is implemented and its local, GitHub CI, and Railway validation flows pass. The repository now
+contains the production boundaries, correctness kernel, provider shells, local services, CI gates,
+accessible browser harness, and operator documentation required by S0. The owner accepted the
+recorded evidence on 2026-07-24, and the roadmap now marks W0 `Complete`. Repository merge and
+production-provider setup remain post-completion operational work.
 
 The implementation stayed within W0. Authentication, tenants, project workflows, production
 credentials, loaded OCR model artifacts, and later-wave product behavior were not introduced.
@@ -117,7 +117,7 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
 | Liveness differs from readiness | API/worker tests and live probes pass |
 | Correlation survives request to job | Integration assertion and live structured worker logs pass |
 | Injected secrets do not appear in logs | Adversarial captured-log tests pass |
-| S0 shared pipeline | Passed locally and in GitHub Actions run `30095229451` |
+| S0 shared pipeline | Passed locally and in GitHub Actions run `30096034666` |
 
 ## 7. Railway Validation Evidence
 
@@ -140,11 +140,12 @@ The executable browser specification is `tests/e2e/foundation.spec.ts`. The Rail
   passed.
 
 GitHub evidence is [draft PR #1](https://github.com/mnishanth02/delivery-os/pull/1) and passing
-[Actions run 30095229451](https://github.com/mnishanth02/delivery-os/actions/runs/30095229451).
+[Actions run 30096034666](https://github.com/mnishanth02/delivery-os/actions/runs/30096034666).
 
-## 8. Manual or External Follow-up
+## 8. Post-completion Operational Follow-up
 
-These actions require owner approval or provider resources outside W0:
+These actions do not block W0 completion but require repository administration, a later production
+release decision, or provider resources outside W0:
 
 1. Review and merge [draft PR #1](https://github.com/mnishanth02/delivery-os/pull/1), then require
    the passing CI workflow on `main`.
@@ -153,8 +154,8 @@ These actions require owner approval or provider resources outside W0:
    reviewed local branch so the incomplete `main` revision could not auto-deploy.
 3. Provision private staging R2 and Resend resources and add secrets through the platform secret
    manager. Do not enable Sentry/OTel export until a scrubbed endpoint is approved.
-4. Complete engineering/security owner review, change `APP_ENV` from `staging` to `production` when
-   appropriate, then promote W0 from `In Validation` to `Complete`.
+4. Keep `APP_ENV=staging` while the diagnostic route is required. Change it to `production` only as
+   part of an explicit production release after the route is no longer needed.
 
 OCR recognition intentionally returns `503` in W0. S4 must embed and evaluate the pinned
 PP-StructureV3 model artifact before enabling recognition; this is planned scope, not a W0 defect.

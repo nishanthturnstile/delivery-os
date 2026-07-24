@@ -1,6 +1,6 @@
 # W0 Platform Foundation — Execution Packet
 
-**Status:** Implemented; local validation passed **Wave:** W0 **Backlog slice:** S0 **Owner:** Platform
+**Status:** Complete; local, GitHub CI, and Railway validation passed **Wave:** W0 **Backlog slice:** S0 **Owner:** Platform
 **Approved specification:** Repository `HEAD` plus the working-tree roadmap update **Requirements:**
 NFR-03, NFR-06, NFR-12, NFR-13; FR-CC-01–03, FR-CC-16–17 **Normative sources:**
 [Architecture & Contracts](../core/architecture-contracts.md),
@@ -158,6 +158,6 @@ results. Production provider provisioning is a documented manual prerequisite fo
 validation, not permission to weaken or bypass the W0 gates.
 
 Implementation and test results are recorded in the
-[W0 validation record](../validation/w0-platform-foundation.md). Local gates passed on 2026-07-24;
-external GitHub CI and Railway staging evidence remain before the roadmap can move from
-`In Validation` to `Complete`.
+[W0 validation record](../validation/w0-platform-foundation.md). Local gates, GitHub Actions run
+`30096034666`, and Railway validation passed on 2026-07-24. The owner accepted the recorded evidence
+and W0 is `Complete`.
