@@ -167,3 +167,32 @@ the supported R2 subset.
 All ports can be overridden by the corresponding variables in `compose.yaml`. Safe local
 application defaults are built in and mirrored by `.env.example`; production environments must
 provide validated non-local values.
+
+## 8. W0 Railway Validation Deployment
+
+The W0 validation deployment was created on 2026-07-24 in `muthurema's Projects`:
+
+- Project: [delivery-os](https://railway.com/project/d3b8b065-7605-41d2-a844-4625d527b0c2)
+- Environment: Railway's single default `production` environment, with application mode
+  `APP_ENV=staging` until the owner promotion gate is approved.
+- Public web: <https://web-production-57ecb9.up.railway.app>
+- Private services: worker and OCR; neither has a public domain.
+- Data services: Railway PostgreSQL 18 and exact `redis:8.8.0-alpine`, both with persistent
+  volumes.
+- Application release: web and worker `144ab84`; OCR has no source delta from its validated
+  deployment.
+
+The checked-in migration was applied twice through the PostgreSQL public release connection and was
+idempotent. Web readiness verified PostgreSQL and Redis over Railway private networking. The
+transactional probe returned `201`; the worker dispatched and processed its outbox event once.
+Restarting web and worker retained the previously committed event and processed a new event once.
+
+Remote browser verification is reproducible with:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://web-production-57ecb9.up.railway.app pnpm test:e2e
+```
+
+The validation environment intentionally uses `APP_ENV=staging` because the diagnostic platform
+probe is denied in approved production mode. Change it to `production` only when the W0 owner gate
+is complete and the diagnostic route is no longer required.

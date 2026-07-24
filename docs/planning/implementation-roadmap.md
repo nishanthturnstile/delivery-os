@@ -63,7 +63,7 @@ containing:
 
 | Wave | Product module or capability            | Backlog slices | Requirements                                            | Depends on                                     | Status        | Owner      | Evidence |
 | ---- | --------------------------------------- | -------------- | ------------------------------------------------------- | ---------------------------------------------- | ------------- | ---------- | -------- |
-| W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `In Validation` | Platform   | [Local evidence](../validation/w0-platform-foundation.md) |
+| W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `In Validation` | Platform   | [Local, CI, and Railway evidence](../validation/w0-platform-foundation.md) |
 | W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Not Started` | Unassigned | TBD      |
 | W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Not Started` | Unassigned | TBD      |
 | W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Not Started` | Unassigned | TBD      |

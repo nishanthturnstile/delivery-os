@@ -41,5 +41,13 @@ TEST_DATABASE_URL=postgresql://delivery_os:delivery_os_local@127.0.0.1:55432/del
 pnpm test:e2e
 ```
 
+Run the same browser and accessibility specification against an already deployed environment with:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://your-web-domain.example pnpm test:e2e
+```
+
+When `PLAYWRIGHT_BASE_URL` is set, Playwright does not start the local Next.js development server.
+
 Production provider export is disabled by default. Copy `.env.example` only when overriding the safe
 local defaults; never commit a populated environment file.
