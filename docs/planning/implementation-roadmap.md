@@ -8,9 +8,10 @@
 [AI, Security & Evaluation](../assurance/ai-security-evaluation.md)
 
 This roadmap translates the dependency-ordered delivery slices into a module-wise implementation
-path for product modules M1–M10. It is the living place for execution status, ownership, and
-evidence links. It does not redefine product behavior, architecture, acceptance criteria, or pilot
-gates.
+path for product modules M1–M10. It is the **single source of truth for implementation status**,
+ownership, and evidence links. It does not redefine product behavior, architecture, acceptance
+criteria, or pilot gates. The backlog, execution packets, and validation records provide scope and
+evidence only; they must not maintain a second implementation-status value.
 
 When this roadmap and a normative document disagree, follow the authority rules in the
 [documentation index](../README.md), correct the earliest authoritative source, and then update this
@@ -34,7 +35,8 @@ scenario is missing.
 
 ### 1.2 Tracking rules
 
-- Update the summary table and the affected wave in the same change.
+- Update the summary table and the affected wave in the same change. These are the only places
+  implementation status is recorded.
 - Replace `Unassigned` before a module moves to `In Progress`.
 - Replace `TBD` with stable test, report, runbook, or approved snapshot links.
 - Record blockers with an owner, opened date, clearing condition, and linked decision or issue.
@@ -45,7 +47,28 @@ scenario is missing.
 - A module may enter `In Validation` only after its dependent module gates pass.
 - A module is `Complete` only after its mapped backlog acceptance criteria pass in staging.
 
-### 1.3 Module execution packet
+### 1.3 Required agent handoff
+
+Before beginning implementation of a module, an agent must confirm in the roadmap summary that
+every prerequisite is `Complete`, its evidence link is present, and the target module has an owner.
+Planning or investigation may proceed earlier; implementation changes may not.
+
+For every module, the implementing agent must:
+
+1. Set the module to `In Progress` in the summary and its wave section when implementation begins.
+2. Run the module's required tests, acceptance scenarios, and applicable security, accessibility,
+   migration, and operational checks.
+3. Record the results in a validation record, link that evidence from the roadmap, and set the
+   module to `In Validation` while the exit gate is being assessed.
+4. Set the module to `Complete` only after the exit gate passes; otherwise record a `Blocked`
+   status with the owner, opened date, clearing condition, and linked issue or decision.
+5. Re-check the roadmap before starting the next dependent module. Do not start that implementation
+   until this status is `Complete` and the evidence link is stable.
+
+An agent must make these roadmap updates in the same change that changes the implementation state.
+It must not infer status from a backlog label, an execution packet, or a validation record.
+
+### 1.4 Module execution packet
 
 Before implementation starts for a module, its owner creates or approves an execution packet
 containing:
@@ -197,6 +220,8 @@ In addition to the module-specific gate, every module requires:
 
 ## 4. W0 — Platform Foundation
 
+**Implementation status:** `Complete` — [completion evidence](../validation/w0-platform-foundation.md)
+
 **Objective:** Provide a production-shaped development platform on which every functional module can
 implement the shared contracts consistently.
 
@@ -235,6 +260,8 @@ implement the shared contracts consistently.
 
 ## 5. W1 — M1 Identity, Tenancy & Workspace
 
+**Implementation status:** `Not Started`
+
 **Objective:** Establish authenticated principals, explicit tenants, and the authorization base for
 every later module.
 
@@ -270,6 +297,8 @@ every later module.
 passes in staging. Project-scoped role requirement FR-M1-07 completes with M2 in W2.
 
 ## 6. W2 — M2 Client & Project Registry and Shared Artifact Kernel
+
+**Implementation status:** M2 `Not Started`; Shared Artifact Kernel `Not Started`
 
 ### 6.1 M2 Client & Project Registry
 
@@ -333,6 +362,8 @@ artifact schemas.
 
 ## 7. W3 — M3 Requirement Intake & Template Engine
 
+**Implementation status:** `Not Started`
+
 **Objective:** Turn authorized source files into a cited, human-approved Requirement baseline with
 explicit conflicts and gaps.
 
@@ -383,6 +414,8 @@ pass, and an approved Requirement baseline can be produced from every supported 
 
 ## 8. W4 — M4 Technical, UX & Delivery Planning
 
+**Implementation status:** `Not Started`
+
 **Objective:** Convert approved Requirements into governed Technical, UX, and Feature-level delivery
 context.
 
@@ -412,6 +445,8 @@ context.
 eligibility path.
 
 ## 9. W5 — M6 Work Breakdown Engine
+
+**Implementation status:** `Not Started`
 
 **Objective:** Progressively elaborate approved plans into traceable, typed, ready work and honest
 forecasts.
@@ -455,6 +490,8 @@ defensible range forecast.
 
 ### 10.1 W6A — M7 Sprint & Delivery Board
 
+**Implementation status:** `Not Started`
+
 **Objective:** Run Ready work through a truthful delivery lifecycle ending in a human-reviewed
 immutable completion snapshot.
 
@@ -485,6 +522,8 @@ frozen evidence.
 
 ### 10.2 W6B — M8 Client Portal & Dashboard
 
+**Implementation status:** `Not Started`
+
 **Objective:** Give a project-scoped client a safe, understandable view and one governed input
 channel.
 
@@ -512,6 +551,8 @@ channel.
 
 ### 10.3 W6C — M5 Cost & Subscription Planning
 
+**Implementation status:** `Not Started`
+
 **Objective:** Provide optional, reproducible cost planning without blocking core delivery when
 disabled.
 
@@ -535,6 +576,8 @@ disabled.
 block W3–W7.
 
 ## 11. W7 — M10 MCP Server & Agent Enablement
+
+**Implementation status:** `Not Started`
 
 **Objective:** Allow user-delegated agents to consume approved context and perform bounded delivery
 actions through the same human-controlled domain rules.
@@ -571,6 +614,8 @@ actions through the same human-controlled domain rules.
 **Exit gate:** S9 passes for every supported representative MCP client.
 
 ## 12. W8 — M9 Change Management & Re-analysis
+
+**Implementation status:** `Not Started`
 
 **Objective:** Apply approved change without rewriting historical decisions, active work, or
 delivered evidence silently.
@@ -609,6 +654,8 @@ delivered evidence silently.
 external change.
 
 ## 13. W9 — Cross-Cutting Assurance and Dogfood
+
+**Implementation status:** `Not Started`
 
 **Objective:** Prove that the complete controlled-pilot lifecycle is secure, operable, accessible,
 recoverable, and useful.

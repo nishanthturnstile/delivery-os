@@ -1,6 +1,6 @@
 # W0 Platform Foundation — Validation Record
 
-**Status:** Complete — local, GitHub CI, and Railway validation passed
+**Validation result:** Passed — local, GitHub CI, and Railway validation passed
 **Date:** 2026-07-24
 **Owner:** Platform
 **Plan:** [W0 execution packet](../planning/w0-platform-foundation.md)
@@ -11,7 +11,7 @@
 W0 is implemented and its local, GitHub CI, and Railway validation flows pass. The repository now
 contains the production boundaries, correctness kernel, provider shells, local services, CI gates,
 accessible browser harness, and operator documentation required by S0. The owner accepted the
-recorded evidence on 2026-07-24, and the roadmap now marks W0 `Complete`. PR #1 is merged, and the
+recorded evidence on 2026-07-24, and the roadmap now records W0 as `Complete`. PR #1 is merged, and the
 Railway application services track `main`. Production-provider setup remains post-completion
 operational work.
 

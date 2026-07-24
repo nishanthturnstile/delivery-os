@@ -11,8 +11,8 @@ For product or implementation work, read:
 3. [Architecture & Contracts](core/architecture-contracts.md) — runtime boundaries, persistence, interfaces, storage, OCR, and frontend stack.
 4. [Design System](core/design-system.md) — UI component layers, visual principles, accessibility, and governance.
 5. [Development Guidelines](core/development-guidelines.md) — coding, testing, AI-assisted implementation, and documentation rules.
-6. [Delivery Backlog](planning/delivery-backlog.md) — dependency-ordered implementation slices and acceptance criteria.
-7. [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md) — living module status, dependency waves, exit gates, and evidence tracking.
+6. [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md) — the single source of implementation status, dependency waves, exit gates, ownership, and evidence tracking.
+7. [Delivery Backlog](planning/delivery-backlog.md) — dependency-ordered implementation slices and acceptance criteria.
 
 Current implementation evidence: [W0 Platform Foundation validation](validation/w0-platform-foundation.md).
 
@@ -61,7 +61,7 @@ docs/
 2. Domain Model & Workflows controls business invariants and state behavior.
 3. Architecture & Contracts, Design System, and Development Guidelines control implementation boundaries.
 4. Pilot Scope and AI/Security specifications control launch gates.
-5. Delivery Backlog controls sequence, not product behavior.
+5. Delivery Backlog controls sequence and acceptance criteria, not implementation status or product behavior.
 6. Research explains decisions but is not normative when it conflicts with a core document.
 7. Resolve a conflict by changing the earliest authoritative source, then propagate the decision to every dependent document in the same change.
 8. A technology decision or normative rule change requires an entry in [Technology Decisions](core/technology-decisions.md) and link validation.
@@ -74,4 +74,7 @@ docs/
 - Do not duplicate normative tables. Research documents should link to the canonical rule.
 - Keep provider limitations explicit; “S3-compatible” never implies complete AWS S3 parity.
 - Record the exact document commit in approved implementation evidence.
+- Record and update implementation status only in the Module-Wise Implementation Roadmap. Before an
+  agent begins a dependent module, it must verify that the predecessor is `Complete` there and that
+  its linked validation evidence is stable.
 - Run the documentation link/anchor and terminology checks before merging.
