@@ -1,4 +1,4 @@
-import { defineRailway, project, service, postgres, redis, github, group, preserve } from "railway/iac";
+import { defineRailway, project, service, postgres, redis, github, group } from "railway/iac";
 
 export default defineRailway(() => {
   const db = postgres("Postgres");
@@ -8,17 +8,16 @@ export default defineRailway(() => {
     source: github("nishanthturnstile/delivery-os", {
       branch: "main",
     }),
-    build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile.web" },
+    build: { builder: "DOCKERFILE" },
     healthcheckPath: "/api/health",
     healthcheckTimeout: 120,
     env: {
       APP_ENV: "staging",
       AUTH_EMAIL_FROM: "noreply@discovery.thaarei.com",
       BETTER_AUTH_URL: "https://web-production-57ecb9.up.railway.app",
-      BETTER_AUTH_SECRET: preserve(),
       EMAIL_PROVIDER: "resend",
       HOSTNAME: "0.0.0.0",
-      RESEND_API_KEY: preserve(),
+      RAILWAY_DOCKERFILE_PATH: "Dockerfile.web",
       RESEND_FROM: "onboarding@discovery.thaarei.com",
       TELEMETRY_EXPORT_ENABLED: "false",
       DATABASE_URL: db.env.DATABASE_URL,
@@ -31,11 +30,12 @@ export default defineRailway(() => {
     source: github("nishanthturnstile/delivery-os", {
       branch: "main",
     }),
-    build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile.worker" },
+    build: { builder: "DOCKERFILE" },
     healthcheckPath: "/health",
     healthcheckTimeout: 120,
     env: {
       APP_ENV: "staging",
+      RAILWAY_DOCKERFILE_PATH: "Dockerfile.worker",
       TELEMETRY_EXPORT_ENABLED: "false",
       DATABASE_URL: db.env.DATABASE_URL,
       REDIS_URL: cache.env.REDIS_URL,
@@ -48,13 +48,12 @@ export default defineRailway(() => {
       branch: "main",
       rootDirectory: "services/ocr",
     }),
-    build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
+    build: { builder: "DOCKERFILE" },
     healthcheckPath: "/health",
     healthcheckTimeout: 300,
     env: {
       OCR_MODEL_VERSION: "PP-StructureV3@paddleocr-3.7.0",
       OCR_RECOGNITION_ENABLED: "false",
-      OCR_SERVICE_TOKEN: preserve(),
     },
     replicas: 1,
   });
