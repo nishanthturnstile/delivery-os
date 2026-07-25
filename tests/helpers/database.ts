@@ -29,7 +29,7 @@ export async function withTemporaryDatabase(
     await operation(testUrl.toString(), pool);
   } finally {
     await pool.end();
-    await admin.query(`drop database if exists "${databaseName}" with (force)`);
+    await admin.query(`drop database if exists "${databaseName}"`);
     await admin.end();
   }
 }
