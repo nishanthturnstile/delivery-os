@@ -52,11 +52,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.config.{js,mjs,ts}', 'scripts/**/*.mjs'],
+    files: ['**/*.config.{js,mjs,ts}', '.railway/**/*.ts', 'scripts/**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: {
         ...globals.node,
+      },
+      parserOptions: {
+        projectService: false,
       },
     },
   },

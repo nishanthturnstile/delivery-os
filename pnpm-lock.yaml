@@ -141,7 +141,7 @@ importers:
         specifier: 1.61.1
         version: 1.61.1
       '@railway/cli':
-        specifier: ^5.28.1
+        specifier: 5.28.1
         version: 5.28.1
       '@testing-library/jest-dom':
         specifier: 7.0.0
