@@ -20,6 +20,7 @@ export type AuthConfiguration = Readonly<{
   baseUrl: string;
   secret: string;
   trustedOrigins: string[];
+  ipAddressHeaders: string[];
   emailSender: AuthEmailSender;
 }>;
 
@@ -65,7 +66,7 @@ export function createDeliveryAuth(
   const isLocalOrTest = config.appEnvironment === 'local' || config.appEnvironment === 'test';
   const generalRateLimit = isLocalOrTest ? 1_000 : 100;
   const interactiveRateLimit = isLocalOrTest ? 1_000 : 5;
-  const sensitiveRateLimit = isLocalOrTest ? 100 : 3;
+  const sensitiveRateLimit = isLocalOrTest ? 1_000 : 3;
   const signUpRateLimit = isLocalOrTest ? 1_000 : 10;
 
   return betterAuth({
@@ -82,6 +83,9 @@ export function createDeliveryAuth(
         generateId: () => uuidv7(),
       },
       cookiePrefix: 'delivery-os',
+      ipAddress: {
+        ipAddressHeaders: config.ipAddressHeaders,
+      },
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: 'lax',

@@ -87,7 +87,7 @@ containing:
 | Wave | Product module or capability            | Backlog slices | Requirements                                            | Depends on                                     | Status        | Owner      | Evidence |
 | ---- | --------------------------------------- | -------------- | ------------------------------------------------------- | ---------------------------------------------- | ------------- | ---------- | -------- |
 | W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `Complete`    | Platform   | [Completion evidence](../validation/w0-platform-foundation.md) |
-| W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `In Validation` | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
+| W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Blocked`     | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
 | W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Not Started` | Unassigned | TBD      |
 | W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Not Started` | Unassigned | TBD      |
 | W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Not Started` | Unassigned | TBD      |
@@ -260,8 +260,16 @@ implement the shared contracts consistently.
 
 ## 5. W1 — M1 Identity, Tenancy & Workspace
 
-**Implementation status:** `In Validation` —
+**Implementation status:** `Blocked` —
 [validation record](../validation/w1-m1-identity-tenancy-workspace.md)
+
+**Blocker:** Owner: Identity & Access. Opened: 2026-07-25. Migration, Railway deployment, provider
+delivery smoke, health, and public desktop/mobile browser checks pass, but the full verification,
+magic-link, reset, and invitation-link journey still requires controlled staging inbox access. The
+deployed working-tree corrections are also not yet published through repository review, so a later
+`main` autodeploy could replace them. Clear this blocker by publishing the reviewed source through
+CI and passing the controlled-inbox S1 journey according to the
+[M1 email-provider decision](../deployment/infrastructure.md#9-m1-identity-and-email-operations).
 
 **Objective:** Establish authenticated principals, explicit tenants, and the authorization base for
 every later module.

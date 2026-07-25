@@ -7,6 +7,7 @@ describe('auth runtime configuration', () => {
     expect(resolveAuthConfiguration('local', {})).toEqual({
       baseUrl: 'http://127.0.0.1:53000',
       secret: 'delivery-os-local-auth-secret-only-for-development',
+      ipAddressHeaders: [],
       email: {
         provider: 'smtp',
         smtpUrl: 'smtp://127.0.0.1:51025',
@@ -21,7 +22,7 @@ describe('auth runtime configuration', () => {
         BETTER_AUTH_URL: 'https://delivery.example',
         BETTER_AUTH_SECRET: 'a'.repeat(32),
       }),
-    ).toThrowError('AUTH_EMAIL_PROVIDER_REJECTED');
+    ).toThrow('AUTH_EMAIL_PROVIDER_REJECTED');
   });
 
   it('requires a sufficiently long non-local Better Auth secret', () => {
@@ -33,7 +34,7 @@ describe('auth runtime configuration', () => {
         RESEND_API_KEY: 're_test',
         RESEND_FROM: 'Delivery OS <delivery@example.com>',
       }),
-    ).toThrowError('BETTER_AUTH_SECRET_REQUIRED');
+    ).toThrow('BETTER_AUTH_SECRET_REQUIRED');
   });
 
   it.each([
@@ -49,7 +50,7 @@ describe('auth runtime configuration', () => {
         RESEND_API_KEY: 're_test',
         RESEND_FROM: 'Delivery OS <delivery@example.com>',
       }),
-    ).toThrowError('BETTER_AUTH_URL_INVALID');
+    ).toThrow('BETTER_AUTH_URL_INVALID');
   });
 
   it('requires both Resend credentials and a verified sender', () => {
@@ -58,10 +59,10 @@ describe('auth runtime configuration', () => {
       BETTER_AUTH_SECRET: 'a'.repeat(32),
       EMAIL_PROVIDER: 'resend',
     };
-    expect(() => resolveAuthConfiguration('staging', base)).toThrowError('RESEND_API_KEY_REQUIRED');
+    expect(() => resolveAuthConfiguration('staging', base)).toThrow('RESEND_API_KEY_REQUIRED');
     expect(() =>
       resolveAuthConfiguration('staging', { ...base, RESEND_API_KEY: 're_test' }),
-    ).toThrowError('RESEND_FROM_REQUIRED');
+    ).toThrow('RESEND_FROM_REQUIRED');
   });
 
   it('accepts a complete staging configuration', () => {
@@ -76,6 +77,7 @@ describe('auth runtime configuration', () => {
     ).toEqual({
       baseUrl: 'https://delivery.example',
       secret: 'a'.repeat(32),
+      ipAddressHeaders: ['x-real-ip'],
       email: {
         provider: 'resend',
         apiKey: 're_test',

@@ -47,6 +47,7 @@ export const auth = createDeliveryAuth(
     baseUrl: authBaseUrl,
     secret: authConfiguration.secret,
     trustedOrigins: [authBaseUrl],
+    ipAddressHeaders: authConfiguration.ipAddressHeaders,
     emailSender: authEmailSender,
   },
 );

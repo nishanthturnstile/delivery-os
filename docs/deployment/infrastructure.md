@@ -228,6 +228,11 @@ deploying the M1 web build. The migration is forward-only after release; runtime
 apply or repair it.
 
 Production and staging fail closed when the Better Auth secret or Resend configuration is missing.
+They also reject a non-HTTPS, non-origin, path-bearing, or wildcard `BETTER_AUTH_URL`; local and test
+are the only environments permitted to use the Mailpit SMTP adapter and development defaults.
+Railway overwrites `X-Real-IP` with the remote client address, and the non-local Better Auth
+configuration trusts that single header for per-client rate limiting instead of accepting a
+spoofable forwarded chain.
 Secure cookies are enabled outside local/test. Password sign-in is limited to five attempts per
 minute, while reset and two-factor endpoints retain the stricter three-attempt limits. Local/test
 limits are higher only so parallel browser projects sharing one loopback IP do not interfere.

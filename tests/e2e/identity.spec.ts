@@ -385,9 +385,9 @@ test('completes verified onboarding, MFA, invite, and personal-email acceptance'
   await openSection(page, 'People & invites');
 
   await clientMembership.getByRole('button', { name: 'Make Admin' }).click();
-  await expect(page.getByText(/Workspace role changed/)).toBeVisible();
+  await expect(clientMembership.getByText('ADMIN', { exact: true })).toBeVisible();
   await clientMembership.getByRole('button', { name: 'Make Member' }).click();
-  await expect(page.getByText(/Workspace role changed/)).toBeVisible();
+  await expect(clientMembership.getByText('MEMBER', { exact: true })).toBeVisible();
 
   const adminMembership = page.getByRole('listitem').filter({ hasText: adminEmail });
   await adminMembership.getByRole('button', { name: 'Make Member' }).click();

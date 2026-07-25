@@ -1,14 +1,6 @@
 type ApplicationEnvironment = 'local' | 'test' | 'preview' | 'staging' | 'production';
 
-type AuthEnvironment = Readonly<{
-  BETTER_AUTH_URL?: string;
-  BETTER_AUTH_SECRET?: string;
-  EMAIL_PROVIDER?: string;
-  MAILPIT_SMTP_URL?: string;
-  AUTH_EMAIL_FROM?: string;
-  RESEND_API_KEY?: string;
-  RESEND_FROM?: string;
-}>;
+type AuthEnvironment = Readonly<Record<string, string | undefined>>;
 
 type EmailConfiguration =
   | Readonly<{ provider: 'smtp'; smtpUrl: string; from: string }>
@@ -17,6 +9,7 @@ type EmailConfiguration =
 export type ResolvedAuthConfiguration = Readonly<{
   baseUrl: string;
   secret: string;
+  ipAddressHeaders: string[];
   email: EmailConfiguration;
 }>;
 
@@ -48,6 +41,7 @@ export function resolveAuthConfiguration(
   environment: AuthEnvironment,
 ): ResolvedAuthConfiguration {
   const isLocalOrTest = appEnvironment === 'local' || appEnvironment === 'test';
+  const ipAddressHeaders = isLocalOrTest ? [] : ['x-real-ip'];
   const baseUrl = isLocalOrTest
     ? (environment.BETTER_AUTH_URL ?? localBaseUrl)
     : requireCanonicalHttpsOrigin(environment.BETTER_AUTH_URL);
@@ -63,6 +57,7 @@ export function resolveAuthConfiguration(
     return {
       baseUrl,
       secret,
+      ipAddressHeaders,
       email: {
         provider: 'resend',
         apiKey: environment.RESEND_API_KEY,
@@ -78,6 +73,7 @@ export function resolveAuthConfiguration(
   return {
     baseUrl,
     secret,
+    ipAddressHeaders,
     email: {
       provider: 'smtp',
       smtpUrl: environment.MAILPIT_SMTP_URL ?? 'smtp://127.0.0.1:51025',
