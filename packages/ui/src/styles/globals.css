@@ -23,7 +23,7 @@
   --surface-inset: oklch(0.955 0.012 275);
   --content-primary: oklch(0.21 0.035 276);
   --content-secondary: oklch(0.43 0.03 276);
-  --content-muted: oklch(0.57 0.022 276);
+  --content-muted: oklch(0.54 0.024 276);
   --content-inverse: oklch(0.985 0.004 275);
   --content-link: oklch(0.47 0.2 274);
   --action-primary: oklch(0.49 0.24 276);
@@ -111,6 +111,17 @@ body {
   color: var(--content-primary);
   font-family: var(--font-manrope), sans-serif;
   text-rendering: optimizeLegibility;
+  word-spacing: 0.04em;
+}
+
+h1,
+h2,
+h3 {
+  word-spacing: 0.12em;
+}
+
+.font-mono {
+  word-spacing: normal;
 }
 
 ::selection {

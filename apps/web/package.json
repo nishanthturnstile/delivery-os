@@ -11,16 +11,20 @@
   },
   "dependencies": {
     "@delivery-os/application": "workspace:*",
+    "@delivery-os/auth": "workspace:*",
     "@delivery-os/contracts": "workspace:*",
     "@delivery-os/database": "workspace:*",
+    "@delivery-os/domain": "workspace:*",
     "@delivery-os/observability": "workspace:*",
     "@delivery-os/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
+    "better-auth": "catalog:",
     "ioredis": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "uuid": "catalog:"
+    "uuid": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "catalog:",

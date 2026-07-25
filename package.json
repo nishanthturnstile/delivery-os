@@ -33,6 +33,7 @@
     "@delivery-os/application": "workspace:*",
     "@delivery-os/contracts": "workspace:*",
     "@delivery-os/database": "workspace:*",
+    "@delivery-os/domain": "workspace:*",
     "@eslint/js": "9.39.5",
     "@axe-core/playwright": "4.12.1",
     "@playwright/test": "1.61.1",

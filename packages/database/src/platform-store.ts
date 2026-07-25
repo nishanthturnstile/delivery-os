@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { ApplicationError, type PlatformCommandStore } from '@delivery-os/application';
 import {
   outboxJobSchema,
+  platformOutboxJobSchema,
   platformProbeResultSchema,
   type OutboxJob,
   type PlatformProbeCommand,
@@ -142,7 +143,7 @@ export class PostgresPlatformStore implements PlatformCommandStore {
       ],
     );
 
-    const payload = outboxJobSchema.parse({
+    const payload = platformOutboxJobSchema.parse({
       schemaVersion: '1',
       eventId: outboxEventId,
       eventType: 'platform.probe.recorded.v1',

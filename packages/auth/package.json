@@ -4,16 +4,24 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@delivery-os/contracts": "workspace:*"
+    "@better-auth/drizzle-adapter": "catalog:",
+    "@delivery-os/contracts": "workspace:*",
+    "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
+    "nodemailer": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
+    "@types/nodemailer": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "6.0.3",
     "uuid": "catalog:"
   }

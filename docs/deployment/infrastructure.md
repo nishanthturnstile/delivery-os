@@ -208,3 +208,39 @@ route is no longer required and an explicit production promotion is scheduled. P
 the web, worker, and OCR sources now track `mnishanth02/delivery-os` on `main`. Their first
 repository-linked deployments built merge commit `bf8274a` and passed health checks and the remote
 browser suite.
+
+## 9. M1 Identity and Email Operations
+
+M1 adds these required web-service settings:
+
+| Variable | Local/test | Preview, staging, and production |
+| --- | --- | --- |
+| `BETTER_AUTH_URL` | `http://127.0.0.1:53000` | Exact canonical public HTTPS origin; no path or wildcard |
+| `BETTER_AUTH_SECRET` | Non-production development value | Unique secret of at least 32 random characters from the platform secret manager |
+| `EMAIL_PROVIDER` | `local` | `resend` |
+| `MAILPIT_SMTP_URL` | `smtp://127.0.0.1:51025` | Unset |
+| `AUTH_EMAIL_FROM` | Local sender label | Approved and verified sender identity |
+| `RESEND_API_KEY` | Unset | Environment-specific restricted API key |
+| `RESEND_FROM` | Unset | Approved and verified sender identity |
+
+Apply `packages/database/drizzle/0001_wakeful_blizzard.sql` as an explicit release migration before
+deploying the M1 web build. The migration is forward-only after release; runtime startup does not
+apply or repair it.
+
+Production and staging fail closed when the Better Auth secret or Resend configuration is missing.
+Secure cookies are enabled outside local/test. Password sign-in is limited to five attempts per
+minute, while reset and two-factor endpoints retain the stricter three-attempt limits. Local/test
+limits are higher only so parallel browser projects sharing one loopback IP do not interfere.
+
+Operational response:
+
+- If email delivery fails, the invitation remains recorded and re-issuable; reissue revokes every
+  prior pending link for that address.
+- If sign-in or TOTP abuse increases, inspect rate-limit outcomes without logging email addresses,
+  passwords, tokens, cookies, TOTP secrets, recovery codes, or message bodies.
+- Deactivation revokes active sessions immediately. A user with no other active workspace
+  membership is also denied new sessions; historical user and audit attribution remains.
+- Rotate a compromised Better Auth secret and invalidate all sessions in a controlled incident
+  change. Rotate a compromised Resend key independently and review provider delivery activity.
+- Back up the database before migration and include auth, workspace, membership, invitation,
+  selection, audit, idempotency, and outbox tables in restore validation.

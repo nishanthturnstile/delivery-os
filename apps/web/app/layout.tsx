@@ -18,9 +18,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Delivery OS — Platform Foundation',
-  description:
-    'The production-shaped platform foundation for trusted, evidence-oriented delivery workflows.',
+  title: 'Delivery OS — Workspace Identity',
+  description: 'Secure, explicit workspace tenancy for trusted delivery workflows.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

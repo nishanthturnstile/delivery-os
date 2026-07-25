@@ -7,9 +7,9 @@ describe('checked-in PostgreSQL migrations', () => {
     await withTemporaryDatabase(async (_databaseUrl, pool) => {
       await migrateDatabase(pool);
       const result = await pool.query<{ name: string | null }>(
-        `select to_regclass('public.platform_probes')::text as name`,
+        `select to_regclass('public.workspace_memberships')::text as name`,
       );
-      expect(result.rows[0]?.name).toBe('platform_probes');
+      expect(result.rows[0]?.name).toBe('workspace_memberships');
     });
   });
 
@@ -29,10 +29,10 @@ describe('checked-in PostgreSQL migrations', () => {
         'select version from prior_schema_marker',
       );
       const migration = await pool.query<{ name: string | null }>(
-        `select to_regclass('public.outbox_events')::text as name`,
+        `select to_regclass('public.auth_sessions')::text as name`,
       );
       expect(marker.rows[0]?.version).toBe(0);
-      expect(migration.rows[0]?.name).toBe('outbox_events');
+      expect(migration.rows[0]?.name).toBe('auth_sessions');
     });
   });
 });

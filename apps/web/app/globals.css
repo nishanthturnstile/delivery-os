@@ -29,3 +29,46 @@
     color-mix(in oklch, var(--trace-accent) 15%, transparent)
   );
 }
+
+.auth-grid,
+.onboarding-grid {
+  background:
+    radial-gradient(
+      circle at 80% 12%,
+      color-mix(in oklch, var(--action-primary) 10%, transparent),
+      transparent 32rem
+    ),
+    var(--surface-canvas);
+}
+
+.auth-orb {
+  background:
+    radial-gradient(
+      circle at 40% 35%,
+      color-mix(in oklch, var(--trace-accent) 62%, transparent),
+      transparent 46%
+    ),
+    radial-gradient(
+      circle at 70% 65%,
+      color-mix(in oklch, var(--action-primary) 70%, transparent),
+      transparent 52%
+    );
+  filter: blur(6px);
+  opacity: 0.72;
+}
+
+.auth-link {
+  color: var(--content-link);
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-link:focus-visible {
+  border-radius: var(--radius-control);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}

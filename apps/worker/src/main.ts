@@ -98,7 +98,7 @@ const consumer = new Worker<OutboxJob>(
   'outbox.dispatch',
   async (job) => {
     const event = outboxJobSchema.parse(job.data);
-    const accepted = await outbox.recordProcessed(event, 'platform-probe-v1');
+    const accepted = await outbox.recordProcessed(event, 'delivery-os-outbox-v1');
     logger.info(
       {
         eventId: event.eventId,

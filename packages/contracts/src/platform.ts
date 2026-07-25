@@ -41,7 +41,7 @@ export const platformProbeResultSchema = z.object({
 
 export type PlatformProbeResult = z.infer<typeof platformProbeResultSchema>;
 
-export const outboxJobSchema = z.object({
+export const platformOutboxJobSchema = z.object({
   schemaVersion: z.literal('1'),
   eventId: z.uuidv7(),
   eventType: z.literal('platform.probe.recorded.v1'),
@@ -52,4 +52,4 @@ export const outboxJobSchema = z.object({
   occurredAt: z.iso.datetime(),
 });
 
-export type OutboxJob = z.infer<typeof outboxJobSchema>;
+export type PlatformOutboxJob = z.infer<typeof platformOutboxJobSchema>;
