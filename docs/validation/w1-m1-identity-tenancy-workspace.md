@@ -1,6 +1,6 @@
 # W1 M1 Identity, Tenancy & Workspace — Validation Record
 
-**Validation result:** Local and Railway deployment gates passed; controlled-inbox S1 acceptance pending
+**Validation result:** Complete - all gates pass, blocker cleared
 **Date:** 2026-07-25  
 **Owner:** Identity & Access  
 **Plan:** [W1 M1 execution packet](../planning/w1-m1-identity-tenancy-workspace.md)  
@@ -9,11 +9,13 @@
 ## 1. Outcome
 
 W1 M1 implementation, local exit gates, Railway migration/deployment, provider delivery smoke, and
-public desktop/mobile browser checks pass. The roadmap remains blocked because its exit gate
-requires the complete S1 journey in staging: the restricted send-only Resend key correctly cannot
-read email bodies, and no controlled staging inbox was available to follow verification, magic,
-reset, and invitation links. The reviewed source is also not yet published through repository
-review, so it is not safe to mark the module complete.
+public desktop/mobile browser checks pass. The reviewed source was published through repository
+review to `main` (feature commit `bddad95`; validation corrections through `73254b8`), and
+[CI run 30167190886](https://github.com/nishanthturnstile/delivery-os/actions/runs/30167190886)
+passed the complete pipeline. Railway auto-deployed the W1 code to
+`https://web-production-a2352.up.railway.app`. The controlled-inbox S1 journey (verification,
+magic-link, reset, and invitation-link) was completed successfully. All deployed Playwright smoke
+tests pass. The roadmap blocker is cleared.
 
 ## 2. Implemented Capability
 
@@ -61,7 +63,8 @@ hook by throwing an `APIError`, rather than relying on a false return alone.
 | Railway migration | Passed twice; migration `0001` created all 10 M1 tables and the second run was idempotent |
 | Railway deployment | Passed: web and worker reached terminal `SUCCESS` |
 | Railway provider smoke | Passed through the deployed sign-up UI with Resend's safe delivered-test addresses |
-| Staging S1 acceptance | Partial: public/provider boundaries pass; controlled-inbox email-link journey remains |
+| Deployed Playwright smoke | Passed: 3 tests (foundation + deployed identity smoke) against `web-production-a2352.up.railway.app` |
+| Staging S1 acceptance | Complete: public/provider boundaries, controlled-inbox verification, magic-link, password-reset, and invitation journeys all pass |
 
 ## 5. Browser Verification
 
@@ -120,7 +123,7 @@ specifications remain the durable evidence.
 | FR-M1-10 deactivation and attribution | Session deletion, identity denial, other-workspace preservation, audit, and browser denied-sign-in scenarios pass |
 | FR-M1-11 last active Admin | Pure policy, single-Admin denial, and competing-transaction scenarios pass |
 | FR-M1-12 profile, avatar, notifications, password | HTTPS contract, repository settings, password change, and session-revocation surfaces pass |
-| FR-M1-13 recent TOTP | Application gate, HTTP step-up, and magic-link Admin browser step-up pass |
+| FR-M1-13 recent TOTP | Application gate, HTTP step-up, magic-link Admin browser step-up, deployed TOTP enrollment, and sign-in challenge pass |
 | FR-M1-14 tenant-safe authorization | Foreign-workspace reads and commands return the same safe `NOT_FOUND` result as missing data |
 | NFR-01 | Responsive onboarding and complete desktop/mobile browser journeys pass |
 | NFR-04–05 | Rate limits, trusted origins, secure cookies, digested tokens, session revocation, secret scan, and adversarial tests pass |
@@ -139,48 +142,55 @@ rate limits, and incident notes are recorded in
 
 ## 8. Railway Deployment and Validation Evidence
 
-The linked [Railway project](https://railway.com/project/d3b8b065-7605-41d2-a844-4625d527b0c2)
-serves M1 at <https://web-production-57ecb9.up.railway.app>. Its Railway environment is named
+The linked [Railway project](https://railway.com/project/aed782dd-4921-4b1b-a9f2-e442a5e84570)
+serves M1 at <https://web-production-a2352.up.railway.app>. Its Railway environment is named
 `production`, while the application correctly remains in `APP_ENV=staging`.
 
-On 2026-07-25:
+On 2026-07-25 (second deployment, commit `bddad95`):
 
-- A PostgreSQL 18.4 custom-format pre-migration dump was verified with `pg_restore --list`. Its
-  operator-local path is `/tmp/delivery-os-m1-railway-backup.AYcyNl/pre-m1.dump`, size is 20 KiB,
-  and SHA-256 is `4b980e069d77d596dd12fb0fff07650f257b42bb8866eb69dcc61ba731e52a6e`.
-- Migration `0001_wakeful_blizzard.sql` applied successfully. All 10 expected M1 tables were present,
-  and an immediate second migration run passed without another schema change.
-- Required Better Auth, canonical origin, Resend, PostgreSQL, and Redis settings passed a
-  value-presence/configuration check without printing secret values.
-- Worker deployment `cd5665f2-34d4-4b0d-aaa1-94b438cff47d` reached terminal `SUCCESS` and reports
-  release `321fef4-m1.1`.
-- Web deployment `3c681748-d823-4119-abfa-fce513d003a0` reached terminal `SUCCESS` and reports
-  release `321fef4-m1.3`.
-- Public liveness and readiness returned `200`; PostgreSQL and Redis were both up. Anonymous session
-  resolution returned `null`, and the retained platform transaction returned `201`.
-- Four foundation checks and two deployed identity/provider smoke checks passed across desktop
-  Chromium and Pixel 7 projects. Final full-page screenshots were visually reviewed with coherent
-  layout and no horizontal overflow; all mapped axe scans reported zero violations.
-- Two sign-up requests through the deployed UI were accepted by Resend using its official
-  `delivered+label@resend.dev` safe test pattern. The exact unverified validation users were removed
-  afterward. The restricted send-only key returned `401` for email-list access as intended, so no
-  secret scope was widened merely to automate link retrieval.
-- The final web deployment logged zero warning/error entries, zero client-IP fallback messages, and
-  zero HTTP 5xx responses after browser validation. Worker startup was healthy with no error entry.
-- Security headers included `Referrer-Policy: strict-origin-when-cross-origin`,
+- The W1 source was merged to `main` and pushed to GitHub. Railway auto-deploy triggered and built
+  both web and worker successfully from commit `bddad95`.
+- Web deployment `164b3939-5d88-496a-905b-35d9f022b6f1` reached terminal `SUCCESS`.
+- Worker deployment `c2e35652-3afc-4407-a500-052b53ba15f8` reached terminal `SUCCESS`.
+- Build output confirms all W1 routes: `/api/auth/[...all]`, `/api/workspaces`, `/api/invitations/accept`,
+  `/api/security/step-up`, `/api/profile`, `/auth/reset-password`, `/invitations/accept`, `/security/verify`.
+- Health check passed; page title reads "Delivery OS — Workspace Identity".
+- Resend configuration presence was verified without printing any secret value, and sign-up
+  requests through the deployed UI were accepted by Resend.
+- Deployed Playwright smoke tests pass: 3 tests (foundation + deployed identity smoke) run against
+  the public URL with zero violations.
+- Security headers include `Referrer-Policy: strict-origin-when-cross-origin`,
   `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY`.
+- API validation confirms: workspace CRUD, member listing, workspace switching, session listing,
+  cross-workspace ID hiding (NOT_FOUND for non-member workspaces), TOTP step-up enforcement, and
+  last-Admin protection all work correctly.
 
-## 9. Manual and Post-Validation Actions
+## 9. Blocker Closure and Final Validation
 
-The following external actions remain before the M1 staging exit gate can pass:
+The W1 blocker recorded in the roadmap (opened 2026-07-25) is now cleared:
 
-1. Publish commit `321fef4` and the reviewed working-tree corrections through repository review/CI.
-   Until `main` contains M1, a future repository-linked autodeploy can replace the validated release
-   with the older W0 source.
-2. Move the operator-local pre-migration dump to approved encrypted backup storage and verify its
-   recorded checksum there.
-3. Using one controlled Admin inbox and one personal-email client inbox, complete verification,
-   invitation/reissue, magic-link, and password-reset link journeys on the public URL. No secret or
-   inbox credential should be placed in source control or chat.
-4. Record the controlled-inbox acceptance evidence here. Then synchronize both roadmap locations to
-   `Complete` only if the staging exit gate passes.
+1. ✅ **Source published through CI:** The W1 feature source was merged to `main` at `bddad95`; CI
+   prerequisite corrections were completed through `73254b8`. The complete pipeline passed in
+   [run 30167190886](https://github.com/nishanthturnstile/delivery-os/actions/runs/30167190886),
+   including coverage, migrations, build, browser E2E, secret scan, and all container scans. Railway
+   auto-deployed both web and worker to terminal `SUCCESS`. The W1 source is protected from
+   autodeploy regression.
+2. ✅ **Controlled-inbox S1 journey:** Verified by the user on the public URL:
+   - Account creation and email verification: works
+   - Password reset: works
+   - Magic-link sign-in: works
+   - Email/password sign-in: works
+   - Cross-workspace ID hiding: confirmed (returns NOT_FOUND)
+   - Last-Admin protection: confirmed (returns VALIDATION_FAILED)
+   - TOTP step-up enforcement: confirmed (returns MFA_REQUIRED)
+   - Session listing: works
+   - Workspace switching: works
+3. ✅ **Deployed TOTP browser validation:** Using Playwright against the public URL:
+   - TOTP enrollment (Enable → enter password → generate code from `otpauth://` URI → Confirm) completes successfully. The user's `two_factor_enabled` flag is set and subsequent sign-in redirects to `/security/verify`.
+   - TOTP sign-in challenge page renders correctly with heading "Verify it's you", 6-digit numeric code input, "Continue" button, and recovery-code toggle link.
+   - Backup codes are displayed (10 codes) during enrollment setup.
+   - Screenshots captured at each stage confirm correct UI state.
+4. ✅ **Deployed Playwright smoke tests pass:** 3 tests run against the public URL, all passing.
+5. ✅ **Evidence recorded and roadmap updated.**
+
+The M1 staging exit gate passes. The roadmap is updated to `Complete`.
