@@ -14,7 +14,7 @@ export default defineRailway(() => {
     env: {
       APP_ENV: "staging",
       AUTH_EMAIL_FROM: "noreply@discovery.thaarei.com",
-      BETTER_AUTH_URL: "https://web-production-57ecb9.up.railway.app",
+      BETTER_AUTH_URL: "https://web-production-a2352.up.railway.app",
       EMAIL_PROVIDER: "resend",
       HOSTNAME: "0.0.0.0",
       RAILWAY_DOCKERFILE_PATH: "Dockerfile.web",
