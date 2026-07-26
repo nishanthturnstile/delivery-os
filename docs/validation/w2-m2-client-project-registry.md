@@ -1,24 +1,41 @@
 # W2 M2 Client & Project Registry — Validation Record
 
-**Validation result:** In Validation — local gates pass; repository publication and Railway release
-validation remain active  
-**Date:** 2026-07-26  
-**Owner:** Projects & Clients  
-**Plan:** [W2 M2 execution packet](../planning/w2-m2-client-project-registry.md)  
+**Validation result:** Blocked — implementation, CI, migration, deployment, automated browser, and
+operational gates pass; controlled-inbox public acceptance remains
+
+**Date:** 2026-07-26
+
+**Owner:** Projects & Clients
+
+**Plan:** [W2 M2 execution packet](../planning/w2-m2-client-project-registry.md)
+
 **Backlog:** [S2 Clients, Projects, Project Roles, and Lifecycle](../planning/delivery-backlog.md#s2--clients-projects-project-roles-and-lifecycle)
+
+**Implementation PR:** [#1](https://github.com/nishanthturnstile/delivery-os/pull/1)
+
+**Published revision:** `d6c64cd1d6cca5bad0b8ebe18d37392f76d272f6`
+
+**Remaining acceptance issue:**
+[#2](https://github.com/nishanthturnstile/delivery-os/issues/2)
 
 ## 1. Outcome
 
-The M2 implementation and every local exit-gate suite pass. It provides tenant-safe Client and
-Project registries, independent project roles, linked stakeholder invitations, calendar and
+The M2 implementation and every automatable exit-gate suite pass. It provides tenant-safe Client
+and Project registries, independent project roles, linked stakeholder invitations, calendar and
 availability management, governed lifecycle/readiness, portfolio search and filters, audit/outbox
 records, an outcome Module placeholder, and responsive authenticated browser surfaces.
 
-M2 remains `In Validation` until the reviewed source is published through repository CI, its
-additive migration and web/worker releases reach terminal success on Railway, and the public
-runtime/browser checks pass. The linked Railway project currently has one environment named
-`production`; its application configuration remains `APP_ENV=staging`. This record names that
-topology accurately instead of implying a second Railway staging environment exists.
+The reviewed source is merged, repository CI is green, migration `0002` is applied, the exact merge
+revision is running successfully on Railway web and worker, and public health/readiness and
+unauthenticated boundary smoke pass. M2 is `Blocked` solely because the required public
+authenticated invitation journey needs access to controlled internal and client-stakeholder
+mailboxes. That external acceptance is tracked in
+[#2](https://github.com/nishanthturnstile/delivery-os/issues/2); the module must not move to
+`Complete` until its sanitized desktop/mobile evidence is added here.
+
+The linked Railway project has one environment named `production`; its application configuration
+remains `APP_ENV=staging`. This record names that topology accurately instead of implying a second
+Railway staging environment exists.
 
 ## 2. Implemented Capability
 
@@ -70,7 +87,14 @@ M2 no-High/no-Critical exit gate.
 | Container vulnerability scan | Passed with latest Trivy database; zero fixed Critical/High in web, worker, and OCR images |
 | Pre-deploy database backup | Passed: Railway Postgres volume dump, 43,639 bytes, SHA-256 `5672991e936f5d91d516283092e3ae01743903a2843b9de63abd2b7814b5f7dd` |
 | Backup restore test | Passed in disposable PostgreSQL 18.4; both recorded migrations restored |
-| Repository CI and Railway deployment | Pending terminal validation |
+| Repository publication | Passed: PR [#1](https://github.com/nishanthturnstile/delivery-os/pull/1) merged as `d6c64cd1`; all five required [CI jobs](https://github.com/nishanthturnstile/delivery-os/actions/runs/30183606465) passed |
+| Railway migration | Passed: migration chain is at 3 records and sampled M2 tables are present; an immediate repeat was idempotent |
+| Railway web/worker deployment | Passed: web `b3988a2e-4880-4fd8-b1bf-09d3431541eb` and worker `5101e7cd-8281-44cb-ba8f-e976955c9f13` are `SUCCESS` on exact revision `d6c64cd1` |
+| Public liveness/readiness | Passed: `/api/health` and `/api/ready`; PostgreSQL 25.37 ms and Redis 7.65 ms in the post-merge sample |
+| Public boundary smoke | Passed: 6/6 unauthenticated and safe-boundary checks |
+| Post-merge logs and metrics | Passed: no web/worker deploy errors, no HTTP 5xx, 0% sampled HTTP error rate; web averaged 0.0014 CPU and 0.0648 GB memory, worker 0.0030 CPU and 0.1174 GB memory over one hour |
+| Worker/outbox processing | Passed: three sampled M2 outbox records reached `DISPATCHED` |
+| Controlled-inbox public authenticated journey | Blocked: requires account-owner mailbox access; tracked in [#2](https://github.com/nishanthturnstile/delivery-os/issues/2) |
 
 The browser registry scenario creates two workspaces, two clients, an internal project, and an
 external project. It edits profile/calendar/availability data, records a calendar exception,
@@ -107,12 +131,23 @@ The pre-deploy Railway backup is stored on the existing Postgres volume as
 `m2-predeploy-20260726.dump`. Its downloaded checksum and byte size match the remote evidence, and a
 disposable PostgreSQL 18.4 restore completed successfully before migration or deployment.
 
-The remaining validation sequence is:
+Migration `0002` was applied through the checked-in migration command and then repeated
+idempotently. Railway auto-deployed the merged revision to web and worker. Both deployments reached
+terminal `SUCCESS`; the public liveness/readiness probes, migration state, worker/outbox
+processing, bounded runtime and HTTP error logs, service metrics, and retained public boundary
+smoke passed.
 
-1. Publish the reviewed revision and obtain a green complete CI run.
-2. Apply migration `0002` through the checked-in migration command.
-3. Deploy web and worker and observe terminal `SUCCESS`.
-4. Verify public liveness/readiness, migration state, worker/outbox processing, bounded runtime and
-   HTTP error logs, and service metrics.
-5. Run the public desktop/mobile registry and retained boundary smoke, then update this record and
-   move both roadmap locations to `Complete` only if every check passes.
+## 7. Manual Acceptance Required
+
+The account owner must complete
+[#2](https://github.com/nishanthturnstile/delivery-os/issues/2) against the public Railway URL with
+controlled mailboxes. The run must verify a new internal account, establish recent TOTP, exercise
+Client and internal/external Project flows, and accept the linked workspace/project invitation from
+a separately verified client-stakeholder mailbox. It must also confirm the minimal stakeholder
+surface, lifecycle/readiness behavior, portfolio filters, cross-workspace denial, desktop
+Chromium, mobile reflow, and accessibility.
+
+Do not put credentials, TOTP seeds, cookies, invitation tokens, or unredacted mailbox content in
+the issue or this record. Add sanitized screenshots/results here and then move both roadmap M2
+status locations from `Blocked` to `Complete` only if that public acceptance passes without an
+unresolved Critical/High defect.

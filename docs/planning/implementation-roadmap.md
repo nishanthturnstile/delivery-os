@@ -88,7 +88,7 @@ containing:
 | ---- | --------------------------------------- | -------------- | ------------------------------------------------------- | ---------------------------------------------- | ------------- | ---------- | -------- |
 | W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `Complete`    | Platform   | [Completion evidence](../validation/w0-platform-foundation.md) |
 | W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Complete`    | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
-| W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `In Validation` | Projects & Clients | [Validation record](../validation/w2-m2-client-project-registry.md) |
+| W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Blocked`     | Projects & Clients | [Validation record](../validation/w2-m2-client-project-registry.md) |
 | W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Not Started` | Unassigned | TBD      |
 | W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Not Started` | Unassigned | TBD      |
 | W4   | M4 Technical, UX & Delivery Planning    | S6             | FR-M4-01–12                                             | W3                                             | `Not Started` | Unassigned | TBD      |
@@ -304,12 +304,23 @@ passes in staging. Project-scoped role requirement FR-M1-07 completes with M2 in
 
 ## 6. W2 — M2 Client & Project Registry and Shared Artifact Kernel
 
-**Implementation status:** M2 `In Validation`; Shared Artifact Kernel `Not Started`
+**Implementation status:** M2 `Blocked`; Shared Artifact Kernel `Not Started`
 
 ### 6.1 M2 Client & Project Registry
 
 **Owner:** Projects & Clients
+
 **Evidence:** [Validation record](../validation/w2-m2-client-project-registry.md)
+
+**Blocker owner:** Projects & Clients with the controlled-inbox account owner
+
+**Opened:** 2026-07-26
+
+**Clearing condition:** Complete and record the public authenticated desktop/mobile M2 journey
+using controlled internal and client-stakeholder mailboxes, with no unresolved Critical/High
+defect.
+
+**Linked issue:** [#2 — Complete M2 controlled-inbox public acceptance](https://github.com/nishanthturnstile/delivery-os/issues/2)
 
 **Objective:** Create governed project containers, project-scoped roles, and portfolio visibility.
 
