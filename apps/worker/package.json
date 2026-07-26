@@ -21,7 +21,8 @@
     "bullmq": "catalog:",
     "ioredis": "catalog:",
     "resend": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "uuid": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
