@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type * as S3Module from '@aws-sdk/client-s3';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { send } = vi.hoisted(() => ({ send: vi.fn() }));
 
@@ -15,11 +15,29 @@ vi.mock('@aws-sdk/client-s3', async (importOriginal) => {
   };
 });
 
-import { S3ArtifactExportStorage } from './artifact-export-storage';
+import { createArtifactExportStorage, S3ArtifactExportStorage } from './artifact-export-storage';
 
 describe('artifact export object storage', () => {
   beforeEach(() => {
     send.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('keeps the worker healthy when deferred production storage is unavailable', async () => {
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('S3_BUCKET', '');
+    await expect(
+      createArtifactExportStorage().putImmutable({
+        key: 'exports/test/result.json',
+        body: new Uint8Array(),
+        contentType: 'application/json',
+        contentHash: '0'.repeat(64),
+      }),
+    ).rejects.toThrow(/STORAGE_UNAVAILABLE/);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('writes hash-verified bytes under an immutable key', async () => {

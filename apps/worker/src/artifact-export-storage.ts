@@ -18,6 +18,16 @@ function localDefault(name: string, value: string): string | undefined {
   return ['local', 'test'].includes(process.env.APP_ENV ?? 'local') ? value : undefined;
 }
 
+export function createArtifactExportStorage(): ArtifactExportStorage {
+  const isLocal = ['local', 'test'].includes(process.env.APP_ENV ?? 'local');
+  if (!isLocal && (process.env.S3_BUCKET === undefined || process.env.S3_BUCKET.trim() === '')) {
+    return {
+      putImmutable: () => Promise.reject(new Error('EXPORT_STORAGE_UNAVAILABLE')),
+    };
+  }
+  return new S3ArtifactExportStorage();
+}
+
 export class S3ArtifactExportStorage implements ArtifactExportStorage {
   private readonly bucket = requiredEnvironment(
     'S3_BUCKET',

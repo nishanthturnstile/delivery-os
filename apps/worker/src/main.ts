@@ -18,7 +18,7 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
 import { waitForDependencies } from './startup-retry';
-import { S3ArtifactExportStorage } from './artifact-export-storage';
+import { createArtifactExportStorage } from './artifact-export-storage';
 
 const config = parseRuntimeConfig({ ...localRuntimeDefaults, ...process.env });
 const logger = createLogger({
@@ -29,7 +29,7 @@ const logger = createLogger({
 const database = createDatabasePool(config.DATABASE_URL);
 const outbox = new PostgresOutboxRepository(database);
 const artifactStore = new PostgresArtifactStore(database, new ArtifactKindRegistry());
-const artifactExportStorage = new S3ArtifactExportStorage();
+const artifactExportStorage = createArtifactExportStorage();
 
 try {
   await waitForDependencies({
