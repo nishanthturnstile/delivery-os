@@ -51,6 +51,11 @@ catalog:
   uuid: 14.0.1
   zod: 4.4.3
 
+overrides:
+  brace-expansion@5.0.7: 5.0.8
+  postcss@8.4.31: 8.5.23
+  sharp@0.34.5: 0.35.3
+
 disallowWorkspaceCycles: true
 failIfNoMatch: true
 minimumReleaseAgeExclude:
@@ -70,5 +75,11 @@ minimumReleaseAgeExclude:
   - '@sentry/server-utils@10.68.0'
   - '@sentry/vercel-edge@10.68.0'
   - bullmq@5.81.1
+  - '@playwright/test@1.62.0'
+  - playwright-core@1.62.0
+  - playwright@1.62.0
+  - brace-expansion@5.0.8
+  - postcss@8.5.23
+  - sharp@0.35.3
 saveWorkspaceProtocol: rolling
 sharedWorkspaceLockfile: true

@@ -15,6 +15,13 @@
       "when": 1784911853330,
       "tag": "0001_wakeful_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785000525094,
+      "tag": "0002_odd_fantastic_four",
+      "breakpoints": true
     }
   ]
 }

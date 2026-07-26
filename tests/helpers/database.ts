@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { Pool } from 'pg';
 
 export const migrationsFolder = fileURLToPath(
@@ -36,4 +37,11 @@ export async function withTemporaryDatabase(
 
 export async function migrateDatabase(pool: Pool): Promise<void> {
   await migrate(drizzle({ client: pool }), { migrationsFolder });
+}
+
+export async function migrateDatabaseThroughW1(pool: Pool): Promise<void> {
+  const database = drizzle({ client: pool });
+  const migrations = readMigrationFiles({ migrationsFolder }).slice(0, 2);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Drizzle exposes selective migration only through its typed internal dialect/session pair.
+  await database.dialect.migrate(migrations, database.session, {});
 }

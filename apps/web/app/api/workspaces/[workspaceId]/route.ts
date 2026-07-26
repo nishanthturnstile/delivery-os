@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { v7 as uuidv7 } from 'uuid';
 
 import { apiError, requireUser } from '@/lib/api';
-import { identityStore } from '@/lib/auth';
+import { identityStore, projectStore } from '@/lib/auth';
 
 interface RouteContext {
   params: Promise<{ workspaceId: string }>;
@@ -16,10 +16,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const authContext = await requireUser(request);
     correlationId = authContext.correlationId;
     const { workspaceId } = await context.params;
+    const clientStakeholderOnly = await projectStore.isClientStakeholderOnly(
+      authContext.session.user.id,
+      workspaceId,
+    );
     return NextResponse.json({
       schemaVersion: '1',
       workspace: await identityStore.getWorkspace(authContext.session.user.id, workspaceId),
-      memberships: await identityStore.listMemberships(authContext.session.user.id, workspaceId),
+      accessClass: clientStakeholderOnly ? 'CLIENT_STAKEHOLDER_ONLY' : 'INTERNAL',
+      memberships: clientStakeholderOnly
+        ? []
+        : await identityStore.listMemberships(authContext.session.user.id, workspaceId),
       correlationId,
     });
   } catch (error) {
