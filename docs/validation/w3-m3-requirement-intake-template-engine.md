@@ -3,7 +3,7 @@
 **Reviewed:** 2026-07-26
 **Owner:** Nishanth with Codex
 **Branch base revision:** `ab05c56610a404090c42dbd6cb599ac0cd9e45ed`
-**Reviewed implementation revision:** `7392f625f6cddfdcb87bc25c6987b4b43c720a4e`
+**Reviewed implementation revision:** `51f819af383723329f6fb347ce91c636ba6f814b`
 **Plan:** [W3 M3 Requirement Intake & Template Engine](../planning/w3-m3-requirement-intake-template-engine.md)
 **External gates:** [W3 M3 external promotion and validation gates](../planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 **Roadmap authority:** [Implementation roadmap](../planning/implementation-roadmap.md)
@@ -58,7 +58,10 @@ status/evidence commit does not change implementation behavior.
   `f7544a5c-065b-4eca-9eb8-577008ed6896`: 13 safe changes, zero destructive changes. The private
   ClamAV/OCR topology and disabled AI configuration are present. Cloudflare Wrangler is not
   authenticated, the primary/backup R2 resources are absent, and the exact reviewed revision has
-  not yet been deployed or validated.
+  not yet been deployed or validated. An exact-revision deployment attempt found and then
+  forward-fixed a missing direct worker runtime dependency; the replacement revision must pass CI
+  and be redeployed before staging evidence is accepted. An initial OCR local upload used the wrong
+  archive root and failed before image build; the corrected repository-root upload was accepted.
 
 ## Local verification
 
@@ -167,6 +170,6 @@ Because these criteria are not satisfied, the Section 16 exit gate did not pass.
 ## Final source inventory
 
 The implementation inventory is Git commit
-`7392f625f6cddfdcb87bc25c6987b4b43c720a4e`. It is local evidence only, not a deployed or promoted
+`51f819af383723329f6fb347ce91c636ba6f814b`. It is local evidence only, not a deployed or promoted
 revision. The user's unrelated staged `apps/web/next-env.d.ts` change was excluded from M3 and
 remains outside both M3 commits.
