@@ -199,7 +199,7 @@ emitted no raw error-level connection stacks.
 Remote browser verification is reproducible with:
 
 ```bash
-PLAYWRIGHT_BASE_URL=https://web-production-57ecb9.up.railway.app pnpm test:e2e
+PLAYWRIGHT_BASE_URL=https://web-production-a2352.up.railway.app pnpm test:e2e
 ```
 
 The validation environment intentionally uses `APP_ENV=staging` because the diagnostic platform
