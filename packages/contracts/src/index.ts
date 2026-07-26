@@ -3,3 +3,4 @@ export * from './health';
 export * from './identity';
 export * from './outbox';
 export * from './platform';
+export * from './projects';

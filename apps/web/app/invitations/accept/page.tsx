@@ -9,16 +9,34 @@ export default function AcceptInvitationPage() {
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    void fetch('/api/invitations/accept', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        invitationId: query.get('id'),
-        workspaceId: query.get('workspace'),
-        token: query.get('token'),
-        expectedRevision: 1,
-      }),
-    })
+    const projectId = query.get('project');
+    const isProjectInvitation = projectId !== null;
+    void fetch(
+      isProjectInvitation ? '/api/project-invitations/accept' : '/api/invitations/accept',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          isProjectInvitation
+            ? {
+                projectId,
+                projectInvitationId: query.get('projectInvitation'),
+                projectToken: query.get('projectToken'),
+                workspaceId: query.get('workspace'),
+                workspaceInvitationId: query.get('workspaceInvitation'),
+                workspaceToken: query.get('workspaceToken'),
+                projectExpectedRevision: 1,
+                workspaceExpectedRevision: 1,
+              }
+            : {
+                invitationId: query.get('id'),
+                workspaceId: query.get('workspace'),
+                token: query.get('token'),
+                expectedRevision: 1,
+              },
+        ),
+      },
+    )
       .then(async (response) => {
         const body = (await response.json()) as { error?: { message?: string } };
         if (response.status === 401) {
@@ -31,7 +49,11 @@ export default function AcceptInvitationPage() {
           setMessage(body.error?.message ?? 'This invitation is invalid or no longer active.');
         } else {
           setState('accepted');
-          setMessage('Invitation accepted. Your new workspace is ready.');
+          setMessage(
+            isProjectInvitation
+              ? 'Invitation accepted. Your project access is ready.'
+              : 'Invitation accepted. Your new workspace is ready.',
+          );
         }
       })
       .catch(() => {
@@ -48,7 +70,7 @@ export default function AcceptInvitationPage() {
           <Icon aria-hidden size={21} />
         </span>
         <h1 className="mt-6 text-3xl font-extrabold tracking-[-0.045em]">
-          {state === 'accepted' ? 'You’re in.' : 'Workspace invitation'}
+          {state === 'accepted' ? 'You’re in.' : 'Invitation'}
         </h1>
         <p
           className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[var(--content-secondary)]"

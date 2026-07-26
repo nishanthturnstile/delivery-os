@@ -27,7 +27,19 @@ export const errorEnvelopeSchema = z.object({
     message: z.string().min(1).max(240),
     correlationId: z.uuid(),
     currentRevision: z.number().int().nonnegative().optional(),
-    details: z.record(z.string(), z.string()).optional(),
+    details: z
+      .object({
+        allowedStates: z.array(z.string().min(1).max(40)).optional(),
+        unmetCriteria: z
+          .array(
+            z.object({
+              code: z.string().min(1).max(80),
+              message: z.string().min(1).max(240),
+            }),
+          )
+          .optional(),
+      })
+      .optional(),
   }),
   schemaVersion: z.literal('1'),
 });

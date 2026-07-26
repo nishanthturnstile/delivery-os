@@ -14,7 +14,7 @@ For product or implementation work, read:
 6. [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md) — the single source of implementation status, dependency waves, exit gates, ownership, and evidence tracking.
 7. [Delivery Backlog](planning/delivery-backlog.md) — dependency-ordered implementation slices and acceptance criteria.
 
-Current implementation evidence: [W0 Platform Foundation validation](validation/w0-platform-foundation.md).
+Current implementation evidence: [W2 M2 Client & Project Registry validation](validation/w2-m2-client-project-registry.md).
 
 Before pilot or production changes, also read [Pilot Scope & Readiness](planning/pilot-scope.md), [AI, Security & Evaluation](assurance/ai-security-evaluation.md), and [Infrastructure & Deployment](deployment/infrastructure.md).
 
@@ -46,6 +46,10 @@ docs/
 - [Module-Wise Implementation Roadmap](planning/implementation-roadmap.md)
 - [W0 Platform Foundation Plan](planning/w0-platform-foundation.md)
 - [W0 Platform Foundation Validation](validation/w0-platform-foundation.md)
+- [W1 M1 Identity, Tenancy & Workspace Plan](planning/w1-m1-identity-tenancy-workspace.md)
+- [W1 M1 Identity, Tenancy & Workspace Validation](validation/w1-m1-identity-tenancy-workspace.md)
+- [W2 M2 Client & Project Registry Execution Packet](planning/w2-m2-client-project-registry.md)
+- [W2 M2 Client & Project Registry Validation](validation/w2-m2-client-project-registry.md)
 - [AI, Security & Evaluation](assurance/ai-security-evaluation.md)
 - [Infrastructure & Deployment](deployment/infrastructure.md)
 

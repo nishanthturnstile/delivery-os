@@ -8,11 +8,13 @@ import type {
 } from '@delivery-os/contracts';
 import {
   Button,
+  Building2,
   Check,
   CircleAlert,
   Clock3,
   Field,
   GitBranch,
+  FolderKanban,
   Input,
   KeyRound,
   LogOut,
@@ -29,7 +31,9 @@ import { type SyntheticEvent, useCallback, useEffect, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
 
-type Section = 'overview' | 'team' | 'workspace' | 'profile' | 'security';
+import { ClientsPanel, ProjectsPanel } from './registry-panels';
+
+type Section = 'overview' | 'clients' | 'projects' | 'team' | 'workspace' | 'profile' | 'security';
 
 interface ApiError {
   error?: {
@@ -87,6 +91,9 @@ export function WorkspaceApp({
   const [workspace, setWorkspace] = useState<Workspace>();
   const [members, setMembers] = useState<WorkspaceMembership[]>([]);
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+  const [accessClass, setAccessClass] = useState<'INTERNAL' | 'CLIENT_STAKEHOLDER_ONLY'>(
+    'INTERNAL',
+  );
   const [section, setSection] = useState<Section>('overview');
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,10 +114,15 @@ export function WorkspaceApp({
     const response = await requestJson<{
       workspace: Workspace;
       memberships: WorkspaceMembership[];
+      accessClass: 'INTERNAL' | 'CLIENT_STAKEHOLDER_ONLY';
     }>(`/api/workspaces/${workspaceId}`);
     setWorkspace(response.workspace);
     setMembers(response.memberships);
-    if (admin) {
+    setAccessClass(response.accessClass);
+    if (response.accessClass === 'CLIENT_STAKEHOLDER_ONLY') {
+      setSection('overview');
+      setInvitations([]);
+    } else if (admin) {
       const inviteResponse = await requestJson<{ invitations: WorkspaceInvitation[] }>(
         `/api/workspaces/${workspaceId}/invitations`,
       );
@@ -127,6 +139,19 @@ export function WorkspaceApp({
       setLoading(false);
     });
   }, [loadWorkspaces]);
+
+  useEffect(() => {
+    const requested = new URL(window.location.href).searchParams.get('view');
+    if (
+      requested !== null &&
+      ['overview', 'clients', 'projects', 'team', 'workspace', 'profile', 'security'].includes(
+        requested,
+      )
+    ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restore a bookmarkable workspace view
+      setSection(requested as Section);
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedId === undefined) return;
@@ -180,13 +205,22 @@ export function WorkspaceApp({
     );
   }
 
-  const navigation: { id: Section; label: string; icon: typeof UserRound }[] = [
-    { id: 'overview', label: 'Overview', icon: GitBranch },
-    { id: 'team', label: 'People & invites', icon: UsersRound },
-    { id: 'workspace', label: 'Workspace profile', icon: Settings2 },
-    { id: 'profile', label: 'My profile', icon: UserRound },
-    { id: 'security', label: 'Security & sessions', icon: ShieldCheck },
-  ];
+  const navigation: { id: Section; label: string; icon: typeof UserRound }[] =
+    accessClass === 'CLIENT_STAKEHOLDER_ONLY'
+      ? [
+          { id: 'overview', label: 'Project access', icon: GitBranch },
+          { id: 'profile', label: 'My profile', icon: UserRound },
+          { id: 'security', label: 'Security & sessions', icon: ShieldCheck },
+        ]
+      : [
+          { id: 'overview', label: 'Overview', icon: GitBranch },
+          { id: 'clients', label: 'Clients', icon: Building2 },
+          { id: 'projects', label: 'Projects', icon: FolderKanban },
+          { id: 'team', label: 'People & invites', icon: UsersRound },
+          { id: 'workspace', label: 'Workspace profile', icon: Settings2 },
+          { id: 'profile', label: 'My profile', icon: UserRound },
+          { id: 'security', label: 'Security & sessions', icon: ShieldCheck },
+        ];
 
   return (
     <main className="min-h-screen lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
@@ -251,6 +285,9 @@ export function WorkspaceApp({
                 type="button"
                 onClick={() => {
                   setSection(item.id);
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('view', item.id);
+                  window.history.replaceState(null, '', url);
                   setMenuOpen(false);
                 }}
               >
@@ -289,7 +326,7 @@ export function WorkspaceApp({
             <div>
               <p className="text-sm font-bold">{workspace?.name ?? 'Loading workspace…'}</p>
               <p className="font-mono text-[0.625rem] tracking-[0.1em] text-[var(--content-muted)] uppercase">
-                W1 · Identity control plane
+                W2 · Client & project registry
               </p>
             </div>
           </div>
@@ -324,8 +361,33 @@ export function WorkspaceApp({
 
           {workspace === undefined ? (
             <LoadingPanel />
+          ) : accessClass === 'CLIENT_STAKEHOLDER_ONLY' &&
+            section !== 'profile' &&
+            section !== 'security' ? (
+            <ClientStakeholderHolding workspaceName={workspace.name} />
           ) : section === 'overview' ? (
             <Overview workspace={workspace} members={members} invitations={invitations} />
+          ) : section === 'clients' ? (
+            <ClientsPanel
+              workspaceId={workspace.id}
+              isAdmin={selectedSummary?.role === 'ADMIN'}
+              onNotice={(message) => {
+                setNotice(message);
+                setError(undefined);
+              }}
+              onError={handleError}
+            />
+          ) : section === 'projects' ? (
+            <ProjectsPanel
+              workspaceId={workspace.id}
+              members={members}
+              isAdmin={selectedSummary?.role === 'ADMIN'}
+              onNotice={(message) => {
+                setNotice(message);
+                setError(undefined);
+              }}
+              onError={handleError}
+            />
           ) : section === 'team' ? (
             <TeamPanel
               workspaceId={workspace.id}
@@ -376,6 +438,27 @@ export function WorkspaceApp({
         </div>
       </section>
     </main>
+  );
+}
+
+function ClientStakeholderHolding({ workspaceName }: { workspaceName: string }) {
+  return (
+    <section className="mx-auto max-w-2xl rounded-[var(--radius-panel)] border bg-[var(--surface-panel)] p-7 sm:p-10">
+      <span className="grid size-11 place-items-center rounded-full bg-[var(--surface-inset)]">
+        <ShieldCheck aria-hidden size={19} />
+      </span>
+      <p className="mt-7 font-mono text-xs font-semibold tracking-[0.12em] text-[var(--content-muted)] uppercase">
+        Client stakeholder access
+      </p>
+      <h1 className="mt-3 text-3xl font-extrabold tracking-[-0.045em]">
+        Your project space is being prepared.
+      </h1>
+      <p className="mt-4 leading-7 text-[var(--content-secondary)]">
+        You have accepted project access for {workspaceName}. Client-facing project views arrive in
+        a later governed module, so internal people, client registry, and portfolio data remain
+        hidden here.
+      </p>
+    </section>
   );
 }
 

@@ -202,9 +202,7 @@ test('completes verified onboarding, MFA, invite, and personal-email acceptance'
   if (firstRecoveryCode === null) throw new Error('RECOVERY_CODE_MISSING');
   await page.getByLabel('Enrollment code').fill(currentTotp(totpUri));
   await page.getByRole('button', { name: 'Confirm' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Identity with an explicit boundary.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workspace profile' })).toBeVisible();
 
   await openSection(page, 'Workspace profile');
   await page.getByLabel('Company name').fill(`Northstar Studio ${suffix}`);
