@@ -40,6 +40,21 @@ describe('artifact export object storage', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('fails closed when production storage configuration is incomplete', () => {
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('S3_BUCKET', 'delivery-os-staging-primary');
+    vi.stubEnv('S3_REGION', '');
+    expect(() => new S3ArtifactExportStorage()).toThrow('MISSING_S3_REGION');
+
+    vi.stubEnv('S3_REGION', 'auto');
+    vi.stubEnv('S3_ACCESS_KEY_ID', '');
+    expect(() => new S3ArtifactExportStorage()).toThrow('MISSING_S3_ACCESS_KEY_ID');
+
+    vi.stubEnv('S3_ACCESS_KEY_ID', 'synthetic-key');
+    vi.stubEnv('S3_SECRET_ACCESS_KEY', '');
+    expect(() => new S3ArtifactExportStorage()).toThrow('MISSING_S3_SECRET_ACCESS_KEY');
+  });
+
   it('writes hash-verified bytes under an immutable key', async () => {
     send.mockRejectedValueOnce({ $metadata: { httpStatusCode: 404 } }).mockResolvedValueOnce({});
     const body = new TextEncoder().encode('{"safe":true}');
