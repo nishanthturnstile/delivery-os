@@ -1,3 +1,4 @@
+export * from './artifacts';
 export * from './dispatch';
 export * from './errors';
 export * from './identity';

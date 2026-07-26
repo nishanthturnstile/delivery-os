@@ -1,3 +1,4 @@
+export * from './artifact-store';
 export * from './identity-store';
 export * from './platform-store';
 export * from './pool';

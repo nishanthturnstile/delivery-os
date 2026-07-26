@@ -66,6 +66,65 @@ export const outcomeModuleAudience = pgEnum('outcome_module_audience', [
   'TEAM_ONLY',
   'CLIENT_VISIBLE',
 ]);
+export const artifactLifecycleState = pgEnum('artifact_lifecycle_state', [
+  'DRAFT',
+  'IN_REVIEW',
+  'CHANGES_REQUESTED',
+  'APPROVED',
+]);
+export const artifactAudience = pgEnum('artifact_audience', ['TEAM_ONLY', 'CLIENT_VISIBLE']);
+export const artifactAudienceSource = pgEnum('artifact_audience_source', ['EXPLICIT', 'INHERITED']);
+export const artifactApprovalRequestState = pgEnum('artifact_approval_request_state', [
+  'OPEN',
+  'APPROVED',
+  'CHANGES_REQUESTED',
+  'REJECTED',
+  'CANCELLED',
+]);
+export const artifactApprovalScope = pgEnum('artifact_approval_scope', [
+  'INTERNAL',
+  'EXTERNAL_BINDING',
+]);
+export const artifactApprovalDecision = pgEnum('artifact_approval_decision', [
+  'APPROVE',
+  'REJECT',
+  'CHANGES_REQUESTED',
+]);
+export const artifactBaselineState = pgEnum('artifact_baseline_state', ['CURRENT', 'SUPERSEDED']);
+export const artifactDeltaState = pgEnum('artifact_delta_state', [
+  'DRAFT',
+  'IN_REVIEW',
+  'CHANGES_REQUESTED',
+  'REJECTED',
+  'CANCELLED',
+  'APPLIED',
+]);
+export const artifactTargetType = pgEnum('artifact_target_type', [
+  'DRAFT_REVISION',
+  'REVIEW_SNAPSHOT',
+  'BASELINE',
+  'DELTA',
+]);
+export const artifactCommentState = pgEnum('artifact_comment_state', [
+  'OPEN',
+  'RESOLVED',
+  'REMOVED',
+]);
+export const artifactAttachmentState = pgEnum('artifact_attachment_state', [
+  'PENDING',
+  'AVAILABLE',
+  'REMOVED',
+  'QUARANTINED',
+  'FAILED',
+]);
+export const artifactExportState = pgEnum('artifact_export_state', [
+  'PENDING',
+  'PROCESSING',
+  'READY',
+  'FAILED',
+  'CANCELLED',
+  'EXPIRED',
+]);
 
 export const authUsers = pgTable(
   'auth_users',
@@ -843,5 +902,516 @@ export const projectOutcomeModules = pgTable(
       'project_outcome_modules_target_range_check',
       sql`${table.targetStart} <= ${table.targetEnd}`,
     ),
+  ],
+);
+
+export const artifacts = pgTable(
+  'artifacts',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    kindKey: varchar('kind_key', { length: 64 }).notNull(),
+    schemaVersion: varchar('schema_version', { length: 8 }).notNull(),
+    policyVersion: varchar('policy_version', { length: 8 }).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    state: artifactLifecycleState('state').default('DRAFT').notNull(),
+    audience: artifactAudience('audience').notNull(),
+    rootAudienceId: uuid('root_audience_id').notNull(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => authUsers.id),
+    revision: integer('revision').default(1).notNull(),
+    currentDraftRevisionId: uuid('current_draft_revision_id').notNull(),
+    openApprovalRequestId: uuid('open_approval_request_id'),
+    currentBaselineId: uuid('current_baseline_id'),
+    nextDraftNumber: integer('next_draft_number').default(2).notNull(),
+    nextSnapshotNumber: integer('next_snapshot_number').default(1).notNull(),
+    nextRequestNumber: integer('next_request_number').default(1).notNull(),
+    nextBaselineMajor: integer('next_baseline_major').default(1).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('artifacts_workspace_project_id_unique').on(
+      table.workspaceId,
+      table.projectId,
+      table.id,
+    ),
+    index('artifacts_project_kind_updated_idx').on(
+      table.workspaceId,
+      table.projectId,
+      table.kindKey,
+      table.updatedAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'artifacts_workspace_project_fk',
+      columns: [table.workspaceId, table.projectId],
+      foreignColumns: [projects.workspaceId, projects.id],
+    }).onDelete('cascade'),
+    check('artifacts_revision_check', sql`${table.revision} > 0`),
+    check(
+      'artifacts_counters_check',
+      sql`${table.nextDraftNumber} > 0 and ${table.nextSnapshotNumber} > 0 and ${table.nextRequestNumber} > 0 and ${table.nextBaselineMajor} > 0`,
+    ),
+    check('artifacts_kind_check', sql`${table.kindKey} ~ '^[A-Z][A-Z0-9_]{1,63}$'`),
+    check(
+      'artifacts_state_pointer_check',
+      sql`(${table.state} = 'IN_REVIEW' and ${table.openApprovalRequestId} is not null)
+        or (${table.state} <> 'IN_REVIEW')`,
+    ),
+  ],
+);
+
+export const artifactAudiences = pgTable(
+  'artifact_audiences',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    declaredAudience: artifactAudience('declared_audience').notNull(),
+    effectiveAudience: artifactAudience('effective_audience').notNull(),
+    source: artifactAudienceSource('source').notNull(),
+    parentAudienceId: uuid('parent_audience_id'),
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => authUsers.id),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('artifact_audiences_artifact_created_idx').on(table.artifactId, table.createdAt),
+    foreignKey({
+      name: 'artifact_audiences_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check(
+      'artifact_audiences_inheritance_check',
+      sql`(${table.source} = 'EXPLICIT' and ${table.parentAudienceId} is null)
+        or (${table.source} = 'INHERITED' and ${table.parentAudienceId} is not null)`,
+    ),
+  ],
+);
+
+export const artifactDraftRevisions = pgTable(
+  'artifact_draft_revisions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    draftNumber: integer('draft_number').notNull(),
+    parentRevisionId: uuid('parent_revision_id'),
+    sourceBaselineId: uuid('source_baseline_id'),
+    deltaId: uuid('delta_id'),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    schemaVersion: varchar('schema_version', { length: 8 }).notNull(),
+    canonicalization: varchar('canonicalization', { length: 32 }).default('JCS_RFC8785').notNull(),
+    hashAlgorithm: varchar('hash_algorithm', { length: 16 }).default('SHA256').notNull(),
+    contentHash: varchar('content_hash', { length: 64 }).notNull(),
+    canonicalBody: text('canonical_body').notNull(),
+    bodyJson: jsonb('body_json').notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_draft_revisions_number_uidx').on(table.artifactId, table.draftNumber),
+    index('artifact_draft_revisions_hash_idx').on(table.artifactId, table.contentHash),
+    foreignKey({
+      name: 'artifact_draft_revisions_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_draft_revisions_number_check', sql`${table.draftNumber} > 0`),
+    check(
+      'artifact_draft_revisions_hash_check',
+      sql`length(${table.contentHash}) = 64 and ${table.hashAlgorithm} = 'SHA256' and ${table.canonicalization} = 'JCS_RFC8785'`,
+    ),
+  ],
+);
+
+export const artifactReviewSnapshots = pgTable(
+  'artifact_review_snapshots',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    draftRevisionId: uuid('draft_revision_id').notNull(),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    snapshotNumber: integer('snapshot_number').notNull(),
+    schemaVersion: varchar('schema_version', { length: 8 }).notNull(),
+    policyVersion: varchar('policy_version', { length: 8 }).notNull(),
+    canonicalization: varchar('canonicalization', { length: 32 }).notNull(),
+    hashAlgorithm: varchar('hash_algorithm', { length: 16 }).notNull(),
+    contentHash: varchar('content_hash', { length: 64 }).notNull(),
+    canonicalBody: text('canonical_body').notNull(),
+    bodyJson: jsonb('body_json').notNull(),
+    submittedBy: text('submitted_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_review_snapshots_number_uidx').on(table.artifactId, table.snapshotNumber),
+    foreignKey({
+      name: 'artifact_review_snapshots_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'artifact_review_snapshots_draft_fk',
+      columns: [table.draftRevisionId],
+      foreignColumns: [artifactDraftRevisions.id],
+    }),
+    check('artifact_review_snapshots_number_check', sql`${table.snapshotNumber} > 0`),
+    check('artifact_review_snapshots_hash_check', sql`length(${table.contentHash}) = 64`),
+  ],
+);
+
+export const artifactApprovalRequests = pgTable(
+  'artifact_approval_requests',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => artifactReviewSnapshots.id),
+    requestNumber: integer('request_number').notNull(),
+    state: artifactApprovalRequestState('state').default('OPEN').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    requiredSlots: jsonb('required_slots')
+      .$type<
+        {
+          key: string;
+          role: string;
+          scope: 'INTERNAL' | 'EXTERNAL_BINDING';
+          required: boolean;
+        }[]
+      >()
+      .notNull(),
+    bindingDecisionId: uuid('binding_decision_id'),
+    openedBy: text('opened_by')
+      .notNull()
+      .references(() => authUsers.id),
+    openedAt: timestamp('opened_at', { withTimezone: true }).defaultNow().notNull(),
+    closedBy: text('closed_by').references(() => authUsers.id),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    closeComment: text('close_comment'),
+  },
+  (table) => [
+    uniqueIndex('artifact_approval_requests_number_uidx').on(table.artifactId, table.requestNumber),
+    uniqueIndex('artifact_approval_requests_open_uidx')
+      .on(table.artifactId)
+      .where(sql`${table.state} = 'OPEN'`),
+    index('artifact_approval_requests_inbox_idx').on(
+      table.workspaceId,
+      table.state,
+      table.openedAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'artifact_approval_requests_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check(
+      'artifact_approval_requests_close_check',
+      sql`(${table.state} = 'OPEN' and ${table.closedAt} is null and ${table.closedBy} is null)
+        or (${table.state} <> 'OPEN' and ${table.closedAt} is not null and ${table.closedBy} is not null)`,
+    ),
+  ],
+);
+
+export const artifactApprovalDecisions = pgTable(
+  'artifact_approval_decisions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => artifactApprovalRequests.id),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => artifactReviewSnapshots.id),
+    slotKey: varchar('slot_key', { length: 64 }).notNull(),
+    scope: artifactApprovalScope('scope').notNull(),
+    decision: artifactApprovalDecision('decision').notNull(),
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => authUsers.id),
+    actorRole: varchar('actor_role', { length: 32 }).notNull(),
+    comment: text('comment'),
+    snapshotHash: varchar('snapshot_hash', { length: 64 }).notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_approval_decisions_slot_uidx').on(table.requestId, table.slotKey),
+    uniqueIndex('artifact_approval_decisions_external_binding_uidx')
+      .on(table.requestId)
+      .where(sql`${table.scope} = 'EXTERNAL_BINDING'`),
+    index('artifact_approval_decisions_actor_time_idx').on(table.actorId, table.decidedAt),
+    foreignKey({
+      name: 'artifact_approval_decisions_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check(
+      'artifact_approval_decisions_snapshot_hash_check',
+      sql`length(${table.snapshotHash}) = 64`,
+    ),
+    check(
+      'artifact_approval_decisions_comment_check',
+      sql`${table.decision} = 'APPROVE' or length(trim(${table.comment})) >= 2`,
+    ),
+  ],
+);
+
+export const artifactBaselines = pgTable(
+  'artifact_baselines',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    majorNumber: integer('major_number').notNull(),
+    sourceSnapshotId: uuid('source_snapshot_id')
+      .notNull()
+      .references(() => artifactReviewSnapshots.id),
+    contentHash: varchar('content_hash', { length: 64 }).notNull(),
+    schemaVersion: varchar('schema_version', { length: 8 }).notNull(),
+    predecessorBaselineId: uuid('predecessor_baseline_id'),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    state: artifactBaselineState('state').default('CURRENT').notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_baselines_number_uidx').on(table.artifactId, table.majorNumber),
+    uniqueIndex('artifact_baselines_snapshot_uidx').on(table.sourceSnapshotId),
+    uniqueIndex('artifact_baselines_current_uidx')
+      .on(table.artifactId)
+      .where(sql`${table.state} = 'CURRENT'`),
+    foreignKey({
+      name: 'artifact_baselines_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_baselines_number_check', sql`${table.majorNumber} > 0`),
+    check('artifact_baselines_hash_check', sql`length(${table.contentHash}) = 64`),
+  ],
+);
+
+export const artifactDeltas = pgTable(
+  'artifact_deltas',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    baseBaselineId: uuid('base_baseline_id')
+      .notNull()
+      .references(() => artifactBaselines.id),
+    proposedDraftRevisionId: uuid('proposed_draft_revision_id'),
+    approvalRequestId: uuid('approval_request_id'),
+    successorBaselineId: uuid('successor_baseline_id'),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    state: artifactDeltaState('state').default('DRAFT').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    rationale: text('rationale').notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_deltas_open_uidx')
+      .on(table.artifactId)
+      .where(sql`${table.state} in ('DRAFT', 'IN_REVIEW', 'CHANGES_REQUESTED')`),
+    foreignKey({
+      name: 'artifact_deltas_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_deltas_revision_check', sql`${table.revision} > 0`),
+    check('artifact_deltas_rationale_check', sql`length(trim(${table.rationale})) >= 2`),
+  ],
+);
+
+export const artifactComments = pgTable(
+  'artifact_comments',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    targetType: artifactTargetType('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    parentCommentId: uuid('parent_comment_id'),
+    body: text('body'),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    state: artifactCommentState('state').default('OPEN').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => authUsers.id),
+    resolvedBy: text('resolved_by').references(() => authUsers.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    removedBy: text('removed_by').references(() => authUsers.id),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('artifact_comments_target_idx').on(
+      table.artifactId,
+      table.targetType,
+      table.targetId,
+      table.createdAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'artifact_comments_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_comments_revision_check', sql`${table.revision} > 0`),
+    check(
+      'artifact_comments_body_check',
+      sql`(${table.state} = 'REMOVED' and ${table.body} is null) or (${table.state} <> 'REMOVED' and length(trim(${table.body})) between 1 and 8000)`,
+    ),
+  ],
+);
+
+export const artifactCommentMentions = pgTable(
+  'artifact_comment_mentions',
+  {
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => artifactComments.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => authUsers.id),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    mentionedAt: timestamp('mentioned_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userId] }),
+    index('artifact_comment_mentions_user_idx').on(table.userId, table.mentionedAt),
+  ],
+);
+
+export const artifactAttachments = pgTable(
+  'artifact_attachments',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    targetType: artifactTargetType('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    displayName: varchar('display_name', { length: 240 }).notNull(),
+    mediaType: varchar('media_type', { length: 120 }).notNull(),
+    byteSize: bigint('byte_size', { mode: 'number' }).notNull(),
+    contentHash: varchar('content_hash', { length: 64 }),
+    objectReference: text('object_reference').notNull(),
+    audienceId: uuid('audience_id')
+      .notNull()
+      .references(() => artifactAudiences.id),
+    state: artifactAttachmentState('state').default('PENDING').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('artifact_attachments_target_idx').on(
+      table.artifactId,
+      table.targetType,
+      table.targetId,
+      table.state,
+    ),
+    foreignKey({
+      name: 'artifact_attachments_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_attachments_revision_check', sql`${table.revision} > 0`),
+    check(
+      'artifact_attachments_size_check',
+      sql`${table.byteSize} > 0 and ${table.byteSize} <= 100000000`,
+    ),
+  ],
+);
+
+export const artifactExportRequests = pgTable(
+  'artifact_export_requests',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    targetType: artifactTargetType('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    format: varchar('format', { length: 16 }).notNull(),
+    audience: artifactAudience('audience').notNull(),
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => authUsers.id),
+    state: artifactExportState('state').default('PENDING').notNull(),
+    revision: integer('revision').default(1).notNull(),
+    dedupeKey: varchar('dedupe_key', { length: 64 }).notNull(),
+    objectReference: text('object_reference'),
+    contentHash: varchar('content_hash', { length: 64 }),
+    failureCode: varchar('failure_code', { length: 120 }),
+    permissionCheckedAt: timestamp('permission_checked_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('artifact_export_requests_dedupe_uidx').on(
+      table.workspaceId,
+      table.requesterId,
+      table.dedupeKey,
+    ),
+    index('artifact_export_requests_worker_idx').on(table.state, table.createdAt),
+    index('artifact_export_requests_requester_idx').on(
+      table.requesterId,
+      table.state,
+      table.createdAt,
+    ),
+    foreignKey({
+      name: 'artifact_export_requests_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    check('artifact_export_requests_revision_check', sql`${table.revision} > 0`),
   ],
 );

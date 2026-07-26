@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   migrateDatabase,
+  migrateDatabaseThroughM2,
   migrateDatabaseThroughW1,
   withTemporaryDatabase,
 } from '../helpers/database';
@@ -74,6 +75,39 @@ describe('checked-in PostgreSQL migrations', () => {
         project: 'projects',
         lifecycle: 'project_lifecycle_history',
         outcome: 'project_outcome_modules',
+      });
+    });
+  });
+
+  it('upgrades the validated M2 schema additively to the artifact kernel', async () => {
+    await withTemporaryDatabase(async (_databaseUrl, pool) => {
+      await migrateDatabaseThroughM2(pool);
+      const before = await pool.query<{ project: string | null; artifact: string | null }>(
+        `select to_regclass('public.projects')::text as project,
+                to_regclass('public.artifacts')::text as artifact`,
+      );
+      expect(before.rows[0]).toEqual({ project: 'projects', artifact: null });
+
+      await migrateDatabase(pool);
+      const after = await pool.query<{
+        artifact: string | null;
+        snapshot: string | null;
+        baseline: string | null;
+        immutableTrigger: string | null;
+      }>(
+        `select
+           to_regclass('public.artifacts')::text as artifact,
+           to_regclass('public.artifact_review_snapshots')::text as snapshot,
+           to_regclass('public.artifact_baselines')::text as baseline,
+           (select tgname from pg_trigger
+             where tgrelid = 'artifact_review_snapshots'::regclass
+               and tgname = 'artifact_review_snapshots_immutable') as "immutableTrigger"`,
+      );
+      expect(after.rows[0]).toEqual({
+        artifact: 'artifacts',
+        snapshot: 'artifact_review_snapshots',
+        baseline: 'artifact_baselines',
+        immutableTrigger: 'artifact_review_snapshots_immutable',
       });
     });
   });

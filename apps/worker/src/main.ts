@@ -1,7 +1,13 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
 import { outboxJobSchema, type OutboxJob } from '@delivery-os/contracts';
-import { checkDatabase, createDatabasePool, PostgresOutboxRepository } from '@delivery-os/database';
+import {
+  checkDatabase,
+  createDatabasePool,
+  PostgresArtifactStore,
+  PostgresOutboxRepository,
+} from '@delivery-os/database';
+import { ArtifactKindRegistry } from '@delivery-os/domain';
 import {
   createLogger,
   localRuntimeDefaults,
@@ -12,6 +18,7 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
 import { waitForDependencies } from './startup-retry';
+import { S3ArtifactExportStorage } from './artifact-export-storage';
 
 const config = parseRuntimeConfig({ ...localRuntimeDefaults, ...process.env });
 const logger = createLogger({
@@ -21,6 +28,8 @@ const logger = createLogger({
 });
 const database = createDatabasePool(config.DATABASE_URL);
 const outbox = new PostgresOutboxRepository(database);
+const artifactStore = new PostgresArtifactStore(database, new ArtifactKindRegistry());
+const artifactExportStorage = new S3ArtifactExportStorage();
 
 try {
   await waitForDependencies({
@@ -98,6 +107,18 @@ const consumer = new Worker<OutboxJob>(
   'outbox.dispatch',
   async (job) => {
     const event = outboxJobSchema.parse(job.data);
+    if (
+      event.eventType === 'artifact.export-requested.v1' &&
+      event.payload.exportId !== undefined
+    ) {
+      const attempts = job.opts.attempts ?? 1;
+      const rendered = await artifactStore.renderExport(
+        event.payload.exportId,
+        artifactExportStorage,
+        job.attemptsMade + 1 >= attempts,
+      );
+      if (!rendered) throw new Error('ARTIFACT_EXPORT_RENDER_DEFERRED');
+    }
     const accepted = await outbox.recordProcessed(event, 'delivery-os-outbox-v1');
     logger.info(
       {

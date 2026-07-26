@@ -12,9 +12,11 @@ import {
   authUsers,
   authVerifications,
   createDatabasePool,
+  PostgresArtifactStore,
   PostgresIdentityStore,
   PostgresProjectStore,
 } from '@delivery-os/database';
+import { ArtifactKindRegistry } from '@delivery-os/domain';
 import { localRuntimeDefaults, parseRuntimeConfig } from '@delivery-os/observability';
 
 import { resolveAuthConfiguration } from './auth-configuration';
@@ -33,6 +35,7 @@ function createEmailSender(): AuthEmailSender {
 export const authPool = createDatabasePool(runtime.DATABASE_URL);
 export const identityStore = new PostgresIdentityStore(authPool);
 export const projectStore = new PostgresProjectStore(authPool);
+export const artifactStore = new PostgresArtifactStore(authPool, new ArtifactKindRegistry());
 export const authEmailSender = createEmailSender();
 export const auth = createDeliveryAuth(
   authPool,

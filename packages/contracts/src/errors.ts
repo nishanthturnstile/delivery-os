@@ -30,6 +30,11 @@ export const errorEnvelopeSchema = z.object({
     details: z
       .object({
         allowedStates: z.array(z.string().min(1).max(40)).optional(),
+        artifactState: z.string().min(1).max(40).optional(),
+        requestState: z.string().min(1).max(40).optional(),
+        bindingDecision: z.enum(['APPROVED', 'REJECTED']).optional(),
+        lastUpdatedAt: z.iso.datetime().optional(),
+        reloadUrl: z.string().startsWith('/').max(2_048).optional(),
         unmetCriteria: z
           .array(
             z.object({

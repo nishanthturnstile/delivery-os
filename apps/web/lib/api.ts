@@ -43,6 +43,8 @@ export function apiError(error: unknown, fallbackCorrelationId: string): NextRes
     NOT_FOUND: 404,
     REVISION_CONFLICT: 409,
     INVALID_TRANSITION: 409,
+    APPROVAL_CLOSED: 409,
+    JOB_NOT_CANCELLABLE: 409,
     READINESS_FAILED: 422,
     VALIDATION_FAILED: 400,
     IDEMPOTENCY_KEY_REUSED: 409,
