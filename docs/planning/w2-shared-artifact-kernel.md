@@ -1,10 +1,10 @@
 # W2 Shared Artifact Kernel — Approved Implementation Plan
 
-**Status:** Implementation complete — exit gate in validation
+**Status:** Implementation complete — exit gate passed
 
 **Authorization mode:** `IMPLEMENTATION_AUTHORIZED` on 2026-07-26
 
-**Roadmap status:** `In Validation`
+**Roadmap status:** `Complete`
 
 **Owner:** Nishanth with Codex
 **Specification snapshot reviewed:** `14f5143`  
@@ -1119,11 +1119,11 @@ pins at implementation start and validation.
 - [x] `docs/validation/w2-shared-artifact-kernel.md` is created with the exact reviewed/deployed
       revisions and sanitized evidence.
 - [x] Both roadmap locations link that validation record and move together to `In Validation`.
-- [ ] Product/engineering/security owners assess the S3 exit gate.
-- [ ] If every exit condition passes, both roadmap locations move to `Complete`.
+- [x] Product/engineering/security owners assess the S3 exit gate.
+- [x] If every exit condition passes, both roadmap locations move to `Complete`.
 - [ ] If any exit condition fails, both locations move to `Blocked` with owner, opened date,
       clearing condition, and linked issue/decision.
-- [ ] M3/M4/M5 schema implementation remains blocked until the kernel is `Complete`.
+- [x] M3/M4/M5 schema implementation remains blocked until the kernel is `Complete`.
 
 ## 20. Implementation-Ready Summary
 
@@ -1140,7 +1140,8 @@ pins at implementation start and validation.
 
 ### Constraints
 
-- The roadmap is `In Validation` while the recorded Section 15.3 evidence is assessed.
+- The roadmap is `Complete`; dependent module work still requires its own owner and explicit
+  implementation authorization.
 - No M3 storage/ingestion/OCR/malware scope or module-specific body schemas.
 - No real or production data; preserve unrelated worktree changes.
 - Approved content and decision history are immutable; stale writes never overwrite.
