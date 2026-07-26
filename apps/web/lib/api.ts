@@ -49,6 +49,7 @@ export function apiError(error: unknown, fallbackCorrelationId: string): NextRes
     VALIDATION_FAILED: 400,
     IDEMPOTENCY_KEY_REUSED: 409,
     DEPENDENCY_UNAVAILABLE: 503,
+    AI_WORKFLOW_UNAVAILABLE: 503,
   };
   return NextResponse.json(
     errorEnvelopeSchema.parse({

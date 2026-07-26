@@ -221,7 +221,7 @@ function parseDocumentXml(input: Uint8Array, limits: ParserLimits): NormalizedBl
       if (heading?.[1] !== undefined) {
         const level = Number.parseInt(heading[1], 10);
         headingPath.splice(level - 1);
-        headingPath[level - 1] = text;
+        headingPath.push(text);
         addBlock({
           kind: 'HEADING',
           text,

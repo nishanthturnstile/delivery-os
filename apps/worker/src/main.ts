@@ -2,13 +2,21 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import { outboxJobSchema, type OutboxJob } from '@delivery-os/contracts';
 import {
+  approvedAnthropicRequirementEvaluationConfig,
+  approvedOpenAiRequirementConfig,
+  createApprovedRequirementProvider,
+} from '@delivery-os/ai';
+import {
+  AiProvenanceCipher,
   checkDatabase,
   createDatabasePool,
+  PostgresAiWorkflowStore,
   PostgresArtifactStore,
   PostgresDocumentJobRepository,
   PostgresIngestionStore,
   PostgresOcrPageResultStore,
   PostgresOutboxRepository,
+  PostgresRequirementStore,
 } from '@delivery-os/database';
 import { ArtifactKindRegistry, createRequirementArtifactAdapter } from '@delivery-os/domain';
 import { ClamAvScanner, PrivateOcrClient, S3CompatibleStorage } from '@delivery-os/ingestion';
@@ -23,6 +31,7 @@ import Redis from 'ioredis';
 
 import { waitForDependencies } from './startup-retry';
 import { createArtifactExportStorage } from './artifact-export-storage';
+import { createRequirementExtractionHandler } from './ai/requirement-extraction-handler';
 import { createDocumentJobHandlers } from './ingestion/document-handlers';
 import { processOneDocumentJob } from './ingestion/process-document-job';
 
@@ -39,7 +48,7 @@ artifactRegistry.register(createRequirementArtifactAdapter({ externalProject: fa
 const artifactStore = new PostgresArtifactStore(database, artifactRegistry);
 const documentJobs = new PostgresDocumentJobRepository(database);
 const artifactExportStorage = createArtifactExportStorage();
-const documentHandlers = createM3DocumentHandlers();
+const documentHandlers = [...createM3DocumentHandlers(), ...createM3AiHandlers()];
 
 try {
   await waitForDependencies({
@@ -313,6 +322,61 @@ function createM3DocumentHandlers() {
     ocrConfigVersion: value('OCR_CONFIG_DIGEST'),
     ocrMinimumConfidence: 0.85,
   });
+}
+
+function createM3AiHandlers() {
+  if (
+    process.env.AI_GLOBAL_ENABLED !== 'true' ||
+    process.env.AI_REQUIREMENT_EXTRACTION_ENABLED !== 'true'
+  ) {
+    logger.warn({ code: 'M3_AI_DISABLED' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const provider = process.env.AI_DEFAULT_PROVIDER;
+  if (provider !== 'openai' && provider !== 'anthropic') {
+    logger.warn({ code: 'M3_AI_PROVIDER_INVALID' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const config =
+    provider === 'openai'
+      ? approvedOpenAiRequirementConfig
+      : approvedAnthropicRequirementEvaluationConfig;
+  const configuredHash =
+    provider === 'openai'
+      ? process.env.AI_OPENAI_CONFIG_HASH
+      : process.env.AI_ANTHROPIC_CONFIG_HASH;
+  const apiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY;
+  const provenanceKey = process.env.AI_PROVENANCE_KEY;
+  if (
+    configuredHash !== config.configHash ||
+    apiKey === undefined ||
+    apiKey.trim() === '' ||
+    provenanceKey === undefined ||
+    provenanceKey.trim() === ''
+  ) {
+    logger.warn({ code: 'M3_AI_CONFIG_MISSING' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const ai = new PostgresAiWorkflowStore(database, new AiProvenanceCipher(provenanceKey));
+  return [
+    createRequirementExtractionHandler({
+      requirements: new PostgresRequirementStore(database),
+      ai,
+      config,
+      provider: (budget) =>
+        createApprovedRequirementProvider({
+          config,
+          ...(provider === 'openai' ? { openAiApiKey: apiKey } : { anthropicApiKey: apiKey }),
+          budget,
+          enabled: () =>
+            process.env.AI_GLOBAL_ENABLED === 'true' &&
+            process.env.AI_REQUIREMENT_EXTRACTION_ENABLED === 'true',
+        }),
+      environmentEnabled: () =>
+        process.env.AI_GLOBAL_ENABLED === 'true' &&
+        process.env.AI_REQUIREMENT_EXTRACTION_ENABLED === 'true',
+    }),
+  ];
 }
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

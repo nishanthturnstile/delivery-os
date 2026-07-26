@@ -1,4 +1,5 @@
 export * from './artifact-store';
+export * from './ai-store';
 export * from './document-job-store';
 export * from './identity-store';
 export * from './ingestion-store';

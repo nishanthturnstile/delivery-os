@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type {
   Artifact,
@@ -17,6 +17,41 @@ interface Props {
   actorId: string;
   workspaceId: string;
   projectId: string;
+}
+
+interface SourceSummary {
+  id: string;
+  currentGenerationId: string;
+  displayName: string;
+  audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE';
+  processingState: string;
+  retentionState: string;
+}
+
+interface RequirementClaim {
+  id: string;
+  field_key: string;
+  value_json: unknown;
+  audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE';
+  disposition: 'ACCEPTED' | 'EDITED' | 'REJECTED' | null;
+}
+
+interface RequirementConflict {
+  id: string;
+  field_key: string;
+  claim_ids: string[];
+  severity: string;
+  state: string;
+  revision: number;
+}
+
+interface RequirementGap {
+  id: string;
+  field_key: string;
+  reason: string;
+  blocking: boolean;
+  state: string;
+  revision: number;
 }
 
 function key(): string {
@@ -38,6 +73,14 @@ export function RequirementWorkspace({
     artifact === null ? 'Create the manual Requirement to begin.' : 'Requirement loaded.',
   );
   const [uploading, setUploading] = useState(false);
+  const [sources, setSources] = useState<SourceSummary[]>([]);
+  const [selectedSourceGenerationIds, setSelectedSourceGenerationIds] = useState<string[]>([]);
+  const [claims, setClaims] = useState<RequirementClaim[]>([]);
+  const [conflicts, setConflicts] = useState<RequirementConflict[]>([]);
+  const [gaps, setGaps] = useState<RequirementGap[]>([]);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [reviewChoices, setReviewChoices] = useState<Record<string, string>>({});
+  const [riskReviewDates, setRiskReviewDates] = useState<Record<string, string>>({});
   const sections = useMemo(
     () =>
       ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((section) => ({
@@ -46,6 +89,196 @@ export function RequirementWorkspace({
       })),
     [definitions],
   );
+
+  useEffect(() => {
+    if (artifact !== null) {
+      void loadSources();
+      void loadIntelligence();
+    }
+    // The route and artifact identity are stable for this mounted workspace.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifact?.id]);
+
+  async function loadIntelligence() {
+    if (artifact === null) return;
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/${artifact.id}/intelligence`,
+      { cache: 'no-store' },
+    );
+    if (!response.ok) return;
+    const result = (await response.json()) as {
+      claims?: RequirementClaim[];
+      conflicts?: RequirementConflict[];
+      gaps?: RequirementGap[];
+    };
+    setClaims(result.claims ?? []);
+    setConflicts(result.conflicts ?? []);
+    setGaps(result.gaps ?? []);
+  }
+
+  async function loadSources() {
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/sources`,
+      { cache: 'no-store' },
+    );
+    if (!response.ok) {
+      setMessage('Authorized source status could not be refreshed.');
+      return;
+    }
+    const result = (await response.json()) as { sources?: SourceSummary[] };
+    const visible = result.sources ?? [];
+    setSources(visible);
+    setSelectedSourceGenerationIds((selected) =>
+      selected.filter((id) =>
+        visible.some(
+          (source) =>
+            source.currentGenerationId === id &&
+            source.processingState === 'SUCCEEDED' &&
+            source.retentionState === 'ACTIVE',
+        ),
+      ),
+    );
+  }
+
+  function toggleSource(sourceGenerationId: string) {
+    setSelectedSourceGenerationIds((selected) =>
+      selected.includes(sourceGenerationId)
+        ? selected.filter((id) => id !== sourceGenerationId)
+        : [...selected, sourceGenerationId],
+    );
+  }
+
+  async function requestAiExtraction() {
+    if (artifact === null || selectedSourceGenerationIds.length === 0) return;
+    setMessage('Queuing advisory extraction with the selected authorized evidence…');
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/extractions`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': key() },
+        body: JSON.stringify({
+          artifactId: artifact.id,
+          expectedRevision: revision,
+          command: { sourceGenerationIds: selectedSourceGenerationIds },
+        }),
+      },
+    );
+    setMessage(
+      response.ok
+        ? 'Advisory extraction queued. A human must review every claim and gap suggestion.'
+        : 'AI assistance is unavailable or the evidence changed. Manual completion remains available.',
+    );
+  }
+
+  async function dispositionClaim(
+    claimId: string,
+    disposition: 'ACCEPTED' | 'EDITED' | 'REJECTED',
+  ) {
+    if (artifact === null) return;
+    const note = reviewNotes[claimId]?.trim() ?? '';
+    if (disposition !== 'ACCEPTED' && note.length < 2) {
+      setMessage('Add a human review note before editing or rejecting a claim.');
+      return;
+    }
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/${artifact.id}/claims/${claimId}/dispositions`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': key() },
+        body: JSON.stringify({
+          expectedRevision: revision,
+          command:
+            disposition === 'EDITED'
+              ? { disposition, value: note, note }
+              : { disposition, note: disposition === 'ACCEPTED' ? null : note },
+        }),
+      },
+    );
+    const result = (await response.json()) as { revision?: number };
+    if (!response.ok || result.revision === undefined) {
+      setMessage('The claim disposition was not recorded. Refresh and review current state.');
+      return;
+    }
+    setRevision(result.revision);
+    setArtifact({ ...artifact, revision: result.revision });
+    setMessage('Human claim disposition recorded.');
+    await loadIntelligence();
+  }
+
+  async function resolveConflict(conflict: RequirementConflict) {
+    if (artifact === null) return;
+    const selectedClaimId = reviewChoices[conflict.id];
+    const note = reviewNotes[conflict.id]?.trim() ?? '';
+    if (selectedClaimId === undefined || note.length < 2) {
+      setMessage('Select one cited claim and add a human conflict-resolution note.');
+      return;
+    }
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/${artifact.id}/conflicts/${conflict.id}/resolutions`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': key() },
+        body: JSON.stringify({
+          expectedRevision: revision,
+          expectedConflictRevision: conflict.revision,
+          command: { selectedClaimId, authoredValue: null, note },
+        }),
+      },
+    );
+    const result = (await response.json()) as { revision?: number };
+    if (!response.ok || result.revision === undefined) {
+      setMessage('The conflict was not resolved. Refresh and review current state.');
+      return;
+    }
+    setRevision(result.revision);
+    setArtifact({ ...artifact, revision: result.revision });
+    setMessage('Conflict resolved by a human reviewer.');
+    await loadIntelligence();
+  }
+
+  async function dispositionGap(
+    gap: RequirementGap,
+    disposition: 'NOT_APPLICABLE' | 'ACCEPTED_RISK',
+  ) {
+    if (artifact === null) return;
+    const note = reviewNotes[gap.id]?.trim() ?? '';
+    const reviewDate = riskReviewDates[gap.id] ?? '';
+    if (note.length < 8 || (disposition === 'ACCEPTED_RISK' && reviewDate === '')) {
+      setMessage('Add at least eight characters of justification and any required review date.');
+      return;
+    }
+    const command =
+      disposition === 'NOT_APPLICABLE'
+        ? { disposition, justification: note }
+        : {
+            disposition,
+            ownerId: actorId,
+            rationale: note,
+            consequence: note,
+            reviewDate,
+          };
+    const response = await fetch(
+      `/api/workspaces/${workspaceId}/projects/${projectId}/requirements/${artifact.id}/gaps/${gap.id}/dispositions`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': key() },
+        body: JSON.stringify({
+          expectedRevision: revision,
+          expectedGapRevision: gap.revision,
+          command,
+        }),
+      },
+    );
+    const result = (await response.json()) as { revision?: number };
+    if (!response.ok || result.revision === undefined) {
+      setMessage('The gap disposition was not recorded. Refresh and review current state.');
+      return;
+    }
+    setRevision(result.revision);
+    setArtifact({ ...artifact, revision: result.revision });
+    setMessage('Human gap disposition recorded.');
+    await loadIntelligence();
+  }
 
   async function initialize() {
     setMessage('Creating the frozen template and Requirement…');
@@ -250,6 +483,7 @@ export function RequirementWorkspace({
           ? 'Source verified in quarantine and queued for private scanning.'
           : 'Source verification failed safely; it was not made available.',
       );
+      await loadSources();
     } finally {
       setUploading(false);
     }
@@ -309,6 +543,230 @@ export function RequirementWorkspace({
         <p className="text-sm" id="source-help">
           Maximum 50 MB. Team-only by default. No source content is sent to AI automatically.
         </p>
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold">Authorized sources</h3>
+            <Button onClick={() => void loadSources()} type="button" variant="secondary">
+              Refresh source status
+            </Button>
+          </div>
+          {sources.length === 0 ? (
+            <p className="text-sm text-slate-600">No authorized sources are available yet.</p>
+          ) : (
+            <fieldset className="space-y-2">
+              <legend className="sr-only">Select sources for advisory extraction</legend>
+              {sources.map((source) => {
+                const selectable =
+                  source.processingState === 'SUCCEEDED' && source.retentionState === 'ACTIVE';
+                return (
+                  <label
+                    className="flex min-h-11 items-start gap-3 rounded-md border border-slate-200 p-3"
+                    key={source.id}
+                  >
+                    <input
+                      checked={selectedSourceGenerationIds.includes(source.currentGenerationId)}
+                      disabled={!selectable}
+                      onChange={() => toggleSource(source.currentGenerationId)}
+                      type="checkbox"
+                    />
+                    <span>
+                      <span className="block font-medium">{source.displayName}</span>
+                      <span className="block text-sm text-slate-600">
+                        {source.processingState} · {source.audience}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          )}
+          <Button
+            disabled={selectedSourceGenerationIds.length === 0}
+            onClick={() => void requestAiExtraction()}
+            type="button"
+          >
+            Suggest claims and gaps with AI
+          </Button>
+          <p className="text-sm text-slate-600">
+            Advisory only. AI cannot accept a claim, resolve a conflict, mark N/A or Accepted Risk,
+            change audience, submit, approve, or create a baseline.
+          </p>
+        </div>
+      </section>
+      <section
+        aria-labelledby="intelligence-heading"
+        className="space-y-4 rounded-lg border border-slate-200 p-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold" id="intelligence-heading">
+              Advisory evidence review
+            </h2>
+            <p className="text-sm text-slate-600">
+              Claims remain proposals until a human records a disposition. Conflicts and gaps remain
+              explicit.
+            </p>
+          </div>
+          <Button onClick={() => void loadIntelligence()} type="button" variant="secondary">
+            Refresh advisory results
+          </Button>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section aria-labelledby="claims-heading" className="space-y-3">
+            <h3 className="font-semibold" id="claims-heading">
+              Claims ({claims.length})
+            </h3>
+            {claims.map((claim) => (
+              <article className="space-y-2 rounded-md border border-slate-200 p-3" key={claim.id}>
+                <p className="font-medium">{claim.field_key}</p>
+                <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-sm">
+                  {JSON.stringify(claim.value_json, null, 2)}
+                </pre>
+                <p className="text-sm">
+                  {claim.audience} · {claim.disposition ?? 'Awaiting human review'}
+                </p>
+                {claim.disposition === null ? (
+                  <>
+                    <label className="text-sm font-medium" htmlFor={`claim-note-${claim.id}`}>
+                      Human edit or rejection note
+                    </label>
+                    <Textarea
+                      id={`claim-note-${claim.id}`}
+                      onChange={(event) =>
+                        setReviewNotes((notes) => ({ ...notes, [claim.id]: event.target.value }))
+                      }
+                      value={reviewNotes[claim.id] ?? ''}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => void dispositionClaim(claim.id, 'ACCEPTED')}>
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={() => void dispositionClaim(claim.id, 'EDITED')}
+                        variant="secondary"
+                      >
+                        Edit using note
+                      </Button>
+                      <Button
+                        onClick={() => void dispositionClaim(claim.id, 'REJECTED')}
+                        variant="secondary"
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </article>
+            ))}
+          </section>
+          <section aria-labelledby="conflicts-heading" className="space-y-3">
+            <h3 className="font-semibold" id="conflicts-heading">
+              Conflicts ({conflicts.length})
+            </h3>
+            {conflicts.map((conflict) => (
+              <article
+                className="space-y-2 rounded-md border border-slate-200 p-3"
+                key={conflict.id}
+              >
+                <p className="font-medium">
+                  {conflict.field_key} · {conflict.severity}
+                </p>
+                <p className="text-sm">State: {conflict.state}</p>
+                {conflict.state === 'OPEN' ? (
+                  <>
+                    <label className="text-sm font-medium" htmlFor={`conflict-${conflict.id}`}>
+                      Select cited claim
+                    </label>
+                    <select
+                      className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3"
+                      id={`conflict-${conflict.id}`}
+                      onChange={(event) =>
+                        setReviewChoices((choices) => ({
+                          ...choices,
+                          [conflict.id]: event.target.value,
+                        }))
+                      }
+                      value={reviewChoices[conflict.id] ?? ''}
+                    >
+                      <option value="">Choose a claim</option>
+                      {conflict.claim_ids.map((claimId) => (
+                        <option key={claimId} value={claimId}>
+                          {claimId.slice(0, 12)}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="text-sm font-medium" htmlFor={`conflict-note-${conflict.id}`}>
+                      Human resolution note
+                    </label>
+                    <Textarea
+                      id={`conflict-note-${conflict.id}`}
+                      onChange={(event) =>
+                        setReviewNotes((notes) => ({
+                          ...notes,
+                          [conflict.id]: event.target.value,
+                        }))
+                      }
+                      value={reviewNotes[conflict.id] ?? ''}
+                    />
+                    <Button onClick={() => void resolveConflict(conflict)}>Resolve conflict</Button>
+                  </>
+                ) : null}
+              </article>
+            ))}
+          </section>
+          <section aria-labelledby="gaps-heading" className="space-y-3">
+            <h3 className="font-semibold" id="gaps-heading">
+              Gaps ({gaps.length})
+            </h3>
+            {gaps.map((gap) => (
+              <article className="space-y-2 rounded-md border border-slate-200 p-3" key={gap.id}>
+                <p className="font-medium">{gap.field_key}</p>
+                <p className="text-sm">
+                  {gap.reason} · {gap.blocking ? 'Blocking' : 'Advisory'} · {gap.state}
+                </p>
+                {gap.state === 'OPEN' ? (
+                  <>
+                    <label className="text-sm font-medium" htmlFor={`gap-note-${gap.id}`}>
+                      Human justification and consequence
+                    </label>
+                    <Textarea
+                      id={`gap-note-${gap.id}`}
+                      onChange={(event) =>
+                        setReviewNotes((notes) => ({ ...notes, [gap.id]: event.target.value }))
+                      }
+                      value={reviewNotes[gap.id] ?? ''}
+                    />
+                    <label className="text-sm font-medium" htmlFor={`gap-date-${gap.id}`}>
+                      Accepted-risk review date
+                    </label>
+                    <Input
+                      id={`gap-date-${gap.id}`}
+                      onChange={(event) =>
+                        setRiskReviewDates((dates) => ({
+                          ...dates,
+                          [gap.id]: event.target.value,
+                        }))
+                      }
+                      type="date"
+                      value={riskReviewDates[gap.id] ?? ''}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => void dispositionGap(gap, 'NOT_APPLICABLE')}
+                        variant="secondary"
+                      >
+                        Mark N/A
+                      </Button>
+                      <Button onClick={() => void dispositionGap(gap, 'ACCEPTED_RISK')}>
+                        Accept risk
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </article>
+            ))}
+          </section>
+        </div>
       </section>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-8">

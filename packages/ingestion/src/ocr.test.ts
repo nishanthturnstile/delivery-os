@@ -97,5 +97,129 @@ describe('OCR boundary', () => {
     expect(
       () => new PrivateOcrClient('http://ocr.railway.internal:8080', 'synthetic-token-0001', 1_000),
     ).not.toThrow();
+    for (const endpoint of [
+      'ftp://127.0.0.1',
+      'http://user@127.0.0.1',
+      'http://password:secret@127.0.0.1',
+    ]) {
+      expect(() => new PrivateOcrClient(endpoint, 'synthetic-token-0001', 1_000)).toThrow(
+        'endpoint is invalid',
+      );
+    }
+    for (const endpoint of ['http://172.15.0.1', 'http://172.32.0.1', 'http://1.1.1.1']) {
+      expect(() => new PrivateOcrClient(endpoint, 'synthetic-token-0001', 1_000)).toThrow(
+        'must be private',
+      );
+    }
+    for (const endpoint of [
+      'http://localhost',
+      'http://127.0.0.1',
+      'http://10.0.0.1',
+      'http://172.16.0.1',
+      'http://172.31.0.1',
+      'http://192.168.0.1',
+    ]) {
+      expect(() => new PrivateOcrClient(endpoint, 'synthetic-token-0001', 1_000)).not.toThrow();
+    }
+    expect(() => new PrivateOcrClient('http://127.0.0.1', 'short', 1_000)).toThrow(
+      'configuration is invalid',
+    );
+    expect(() => new PrivateOcrClient('http://127.0.0.1', 'synthetic-token-0001', 99)).toThrow(
+      'configuration is invalid',
+    );
+    expect(() => new PrivateOcrClient('http://127.0.0.1', 'synthetic-token-0001', 120_001)).toThrow(
+      'configuration is invalid',
+    );
+  });
+
+  it('maps provider failures and response limits to safe error codes', async () => {
+    for (const [response, message] of [
+      [new Response('', { status: 503 }), 'OCR_WORKFLOW_UNAVAILABLE'],
+      [new Response('', { status: 500 }), 'OCR_PROVIDER_500'],
+      [
+        new Response('{}', {
+          status: 200,
+          headers: { 'content-length': '20000001' },
+        }),
+        'OCR_RESPONSE_SIZE_LIMIT',
+      ],
+    ] as const) {
+      const client = new PrivateOcrClient(
+        'http://127.0.0.1',
+        'synthetic-token-0001',
+        1_000,
+        vi.fn<typeof fetch>().mockResolvedValue(response),
+      );
+      await expect(client.recognize(request)).rejects.toThrow(message);
+    }
+  });
+
+  it('rejects configuration, page-set, and block provenance mismatches', async () => {
+    const cases = [
+      {
+        mutate: (response: ReturnType<typeof fixture>) => ({
+          ...response,
+          configVersion: 'other-config',
+        }),
+        error: 'OCR_CONFIG_MISMATCH',
+      },
+      {
+        mutate: (response: ReturnType<typeof fixture>) => ({ ...response, pages: [] }),
+        error: 'OCR_PAGE_SET_MISMATCH',
+      },
+      {
+        mutate: (response: ReturnType<typeof fixture>) => ({
+          ...response,
+          pages: response.pages.map((page) => ({
+            ...page,
+            blocks: page.blocks.map((block) => ({ ...block, page: 2 })),
+          })),
+        }),
+        error: 'OCR_BLOCK_PROVENANCE_MISMATCH',
+      },
+    ];
+    for (const testCase of cases) {
+      const provider = new DeterministicFakeOcr((input) => testCase.mutate(fixture(input)));
+      await expect(provider.recognize(request)).rejects.toThrow(testCase.error);
+    }
+  });
+
+  it('sorts OCR blocks and validates confidence thresholds', () => {
+    const response = fixture(request);
+    const page = response.pages[0];
+    if (page === undefined) throw new Error('TEST_FIXTURE_INVALID');
+    const sourceBlock = page.blocks[0];
+    if (sourceBlock === undefined) throw new Error('TEST_FIXTURE_BLOCK_MISSING');
+    const result = ocrResponseToBlocks(
+      {
+        ...response,
+        pages: [
+          {
+            ...page,
+            blocks: [
+              { ...sourceBlock, readingOrder: 2, text: 'Second', confidence: 1 },
+              {
+                ...sourceBlock,
+                readingOrder: 1,
+                text: 'First',
+                confidence: 0,
+                polygon: [0.123456, 0, 10, 0, 10, 2, 0, 2],
+              },
+            ],
+          },
+        ],
+      },
+      0.5,
+    );
+    expect(result.blocks.map((block) => block.text)).toEqual(['First', 'Second']);
+    expect(result.lowConfidencePages).toEqual([1]);
+    expect(result.blocks[0]?.locator).toMatchObject({
+      polygon: [0.1235, 0, 10, 0, 10, 2, 0, 2],
+    });
+    for (const threshold of [-0.1, 1.1]) {
+      expect(() => ocrResponseToBlocks(response, threshold)).toThrow(
+        'confidence threshold is invalid',
+      );
+    }
   });
 });

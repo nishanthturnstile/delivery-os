@@ -155,6 +155,7 @@ export const dispositionClaimCommandSchema = requirementMutationEnvelopeSchema.e
 export const resolveRequirementConflictCommandSchema = requirementMutationEnvelopeSchema.extend({
   conflictId: z.uuidv7(),
   resolutionId: z.uuidv7(),
+  expectedConflictRevision: z.number().int().positive(),
   command: z
     .object({
       selectedClaimId: z.uuidv7().nullable(),
@@ -175,6 +176,7 @@ export const resolveRequirementConflictCommandSchema = requirementMutationEnvelo
 export const dispositionRequirementGapCommandSchema = requirementMutationEnvelopeSchema.extend({
   gapId: z.uuidv7(),
   dispositionId: z.uuidv7(),
+  expectedGapRevision: z.number().int().positive(),
   command: z.discriminatedUnion('disposition', [
     z.object({
       disposition: z.literal('RESOLVED'),
@@ -193,6 +195,34 @@ export const dispositionRequirementGapCommandSchema = requirementMutationEnvelop
     }),
   ]),
 });
+
+export const startRequirementExtractionCommandSchema = requirementMutationEnvelopeSchema.extend({
+  intakeSetId: z.uuidv7(),
+  extractionJobId: z.uuidv7(),
+  command: z
+    .object({
+      sourceGenerationIds: z.array(z.uuidv7()).min(1).max(100),
+    })
+    .strict(),
+});
+
+export const configureRequirementAiCommandSchema = z
+  .object({
+    schemaVersion: z.literal('1'),
+    workspaceId: z.uuidv7(),
+    actorId: z.uuidv7(),
+    expectedRevision: z.number().int().nonnegative(),
+    command: z
+      .object({
+        provider: z.enum(['openai', 'anthropic']),
+        globalEnabled: z.boolean(),
+        requirementExtractionEnabled: z.boolean(),
+        provenanceRetentionDays: z.number().int().min(0).max(30),
+        aggregateQualityMetricsEnabled: z.boolean(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export const citationSchema = z.object({
   id: z.uuidv7(),

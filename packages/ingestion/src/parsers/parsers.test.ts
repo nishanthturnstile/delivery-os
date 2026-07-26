@@ -7,6 +7,7 @@ import { parseDocx } from './docx';
 import { parseMarkdown } from './markdown';
 import { parsePdf } from './pdf';
 import { parseText } from './text';
+import { DEFAULT_PARSER_LIMITS } from './types';
 
 describe('deterministic text and Markdown parsing', () => {
   it('preserves exact line ranges and heading paths', () => {
@@ -69,6 +70,79 @@ describe('deterministic text and Markdown parsing', () => {
     expect(replay).toEqual(first);
     expect(changed.documentHash).not.toBe(first.documentHash);
     expect(changed.blocks[0]?.blockKey).not.toBe(first.blocks[0]?.blockKey);
+  });
+
+  it('fails closed on invalid UTF-8 and parser limits for text and Markdown', () => {
+    const invalidUtf8 = Uint8Array.from([0xc3, 0x28]);
+    expect(() => parseText(invalidUtf8)).toThrow('PARSER_INVALID_UTF8');
+    expect(() => parseMarkdown(invalidUtf8)).toThrow('PARSER_INVALID_UTF8');
+    const source = new TextEncoder().encode('First.\n\nSecond.');
+    for (const parse of [parseText, parseMarkdown]) {
+      expect(() =>
+        parse(source, { ...DEFAULT_PARSER_LIMITS, maximumBytes: source.byteLength - 1 }),
+      ).toThrow('PARSER_SIZE_LIMIT');
+      expect(() => parse(source, { ...DEFAULT_PARSER_LIMITS, maximumTextCharacters: 1 })).toThrow(
+        'PARSER_TEXT_LIMIT',
+      );
+      expect(() => parse(source, { ...DEFAULT_PARSER_LIMITS, maximumBlocks: 1 })).toThrow(
+        'PARSER_BLOCK_LIMIT',
+      );
+    }
+  });
+
+  it('keeps sparse Markdown heading levels deterministic and parses all list markers', () => {
+    const parsed = parseMarkdown(
+      new TextEncoder().encode('## Scope\n+ Plus\n* Star\n1. One\n2) Two\n\nTrailing paragraph.'),
+    );
+    expect(parsed.blocks[0]).toMatchObject({
+      kind: 'HEADING',
+      locator: { headingPath: ['Scope'] },
+    });
+    expect(parsed.blocks.slice(1, 5).map((block) => block.kind)).toEqual([
+      'LIST_ITEM',
+      'LIST_ITEM',
+      'LIST_ITEM',
+      'LIST_ITEM',
+    ]);
+    expect(parsed.blocks.at(-1)).toMatchObject({ kind: 'PARAGRAPH', text: 'Trailing paragraph.' });
+  });
+
+  it('rejects non-contiguous or empty normalized block material', () => {
+    const common = {
+      sourceGenerationId: '01967b7c-1c80-7000-8000-000000000001',
+      sourceSha256: createHash('sha256').update('source').digest('hex'),
+      parserVersion: 'text@1',
+      rendererVersion: 'none',
+      ocrConfigVersion: 'none',
+    };
+    expect(() =>
+      normalizeParsedDocument({
+        ...common,
+        blocks: [
+          {
+            ordinal: 1,
+            kind: 'PARAGRAPH',
+            text: 'Synthetic.',
+            locator: { format: 'TEXT', startLine: 1, endLine: 1 },
+            extraction: 'EMBEDDED_TEXT',
+          },
+        ],
+      }),
+    ).toThrow(/contiguous and unique/);
+    expect(() =>
+      normalizeParsedDocument({
+        ...common,
+        blocks: [
+          {
+            ordinal: 0,
+            kind: 'PARAGRAPH',
+            text: '\u0000',
+            locator: { format: 'TEXT', startLine: 1, endLine: 1 },
+            extraction: 'EMBEDDED_TEXT',
+          },
+        ],
+      }),
+    ).toThrow(/cannot be empty/);
   });
 });
 
@@ -184,6 +258,55 @@ describe('bounded DOCX parsing', () => {
     await expect(parseDocx(storedZip({ ...base, EncryptedPackage: 'x' }))).rejects.toThrow(
       /ENCRYPTED_DOCUMENT/,
     );
+  });
+
+  it('enforces archive, expansion, block, and normalized-text limits', async () => {
+    const contentTypes = '<?xml version="1.0"?><Types/>';
+    const documentXml =
+      '<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>Synthetic text</w:t></w:r></w:p></w:body></w:document>';
+    const archive = storedZip({
+      '[Content_Types].xml': contentTypes,
+      'word/document.xml': documentXml,
+    });
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumBytes: archive.byteLength - 1 }),
+    ).rejects.toThrow('PARSER_SIZE_LIMIT');
+    await expect(parseDocx(storedZip({ '[Content_Types].xml': contentTypes }))).rejects.toThrow(
+      'DOCX_REQUIRED_ENTRY_MISSING',
+    );
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumZipEntries: 1 }),
+    ).rejects.toThrow('DOCX_ENTRY_LIMIT');
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumExpandedBytes: 10 }),
+    ).rejects.toThrow('DOCX_EXPANDED_SIZE_LIMIT');
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumCompressionRatio: 0.5 }),
+    ).rejects.toThrow('DOCX_COMPRESSION_RATIO_LIMIT');
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumTextCharacters: 5 }),
+    ).rejects.toThrow('PARSER_TEXT_LIMIT');
+    await expect(
+      parseDocx(archive, { ...DEFAULT_PARSER_LIMITS, maximumBlocks: 0 }),
+    ).rejects.toThrow('PARSER_BLOCK_LIMIT');
+  });
+
+  it('normalizes alternate style attributes, breaks, tabs, and empty table cells', async () => {
+    const parsed = await parseDocx(
+      storedZip({
+        '[Content_Types].xml': '<Types/>',
+        'word/document.xml': `<w:document xmlns:w="w"><w:body>
+          <w:p><w:pPr><w:pStyle val="Heading2"/></w:pPr><w:r><w:t>Scope</w:t></w:r></w:p>
+          <w:p><w:r><w:t>First</w:t><w:tab/><w:t>Second</w:t><w:br/><w:t>Third</w:t></w:r></w:p>
+          <w:tbl><w:tr><w:tc><w:p><w:r><w:t> </w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+        </w:body></w:document>`,
+      }),
+    );
+    expect(parsed.blocks).toMatchObject([
+      { kind: 'HEADING', text: 'Scope', locator: { headingPath: ['Scope'] } },
+      { kind: 'PARAGRAPH', text: 'First\tSecond\nThird' },
+    ]);
+    expect(parsed.blocks).toHaveLength(2);
   });
 });
 

@@ -20,4 +20,24 @@ describe('runtime configuration', () => {
       }),
     ).toThrow(/validated destination/);
   });
+
+  it('accepts remote production dependencies and either approved telemetry destination', () => {
+    const production = {
+      ...localRuntimeDefaults,
+      APP_ENV: 'production',
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://synthetic.invalid/delivery_os',
+      REDIS_URL: 'redis://synthetic.invalid',
+      TELEMETRY_EXPORT_ENABLED: 'true',
+    } as const;
+    expect(
+      parseRuntimeConfig({ ...production, SENTRY_DSN: 'https://public@example.invalid/1' }),
+    ).toMatchObject({ APP_ENV: 'production', TELEMETRY_EXPORT_ENABLED: true });
+    expect(
+      parseRuntimeConfig({
+        ...production,
+        OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example.invalid',
+      }),
+    ).toMatchObject({ APP_ENV: 'production', TELEMETRY_EXPORT_ENABLED: true });
+  });
 });

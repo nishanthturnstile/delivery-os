@@ -40,7 +40,10 @@ export default defineRailway(() => {
       'clamav/clamav@sha256:7f5389ccaa2368c383fa80e167ccfe44348d71e685f926fce4755eed1757673a',
     ),
     volumeMounts: {
-      '/var/lib/clamav': volume('clamav-signatures', { sizeMB: 4096 }),
+      '/var/lib/clamav': volume('clamav-signatures', {
+        sizeMB: 4096,
+        region: 'asia-southeast1-eqsg3a',
+      }),
     },
     replicas: 1,
   });
@@ -54,6 +57,11 @@ export default defineRailway(() => {
     healthcheckTimeout: 120,
     env: {
       APP_ENV: 'staging',
+      AI_GLOBAL_ENABLED: 'false',
+      AI_REQUIREMENT_EXTRACTION_ENABLED: 'false',
+      AI_DEFAULT_PROVIDER: 'openai',
+      AI_OPENAI_CONFIG_HASH: 'cbc9b7350a1f3baa7288c24920a758b342e701efd8f1cf25c497a90cbe294880',
+      AI_ANTHROPIC_CONFIG_HASH: '8915a32f8901a3e854da10553884ca04da9148d5d7d1bf5ec0ead2cf57dfe83e',
       AUTH_EMAIL_FROM: 'noreply@discovery.thaarei.com',
       BETTER_AUTH_SECRET: preserve(),
       BETTER_AUTH_URL: preserve(),
@@ -85,6 +93,14 @@ export default defineRailway(() => {
       AI_MONTHLY_BUDGET_USD: '100',
       AI_PER_RUN_BUDGET_USD: '1',
       AI_BUDGET_ALERTS_USD: '50,80',
+      AI_DEFAULT_PROVIDER: 'openai',
+      AI_OPENAI_CONFIG_HASH: 'cbc9b7350a1f3baa7288c24920a758b342e701efd8f1cf25c497a90cbe294880',
+      AI_ANTHROPIC_CONFIG_HASH: '8915a32f8901a3e854da10553884ca04da9148d5d7d1bf5ec0ead2cf57dfe83e',
+      AI_PROVENANCE_RETENTION_DAYS: '30',
+      AI_AGGREGATE_QUALITY_METRICS_ENABLED: 'true',
+      OPENAI_API_KEY: preserve(),
+      ANTHROPIC_API_KEY: preserve(),
+      AI_PROVENANCE_KEY: preserve(),
       CLAMAV_HOST: clamav.env.RAILWAY_PRIVATE_DOMAIN,
       OCR_INTERNAL_HOST: ocr.env.RAILWAY_PRIVATE_DOMAIN,
       OCR_SERVICE_TOKEN: ocr.env.OCR_SERVICE_TOKEN,

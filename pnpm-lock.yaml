@@ -302,6 +302,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
         version: 3.1094.0
+      '@delivery-os/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@delivery-os/application':
         specifier: workspace:*
         version: link:../../packages/application

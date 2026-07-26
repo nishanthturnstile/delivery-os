@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  createApprovedRequirementProvider,
   createLiveRequirementWorkflowConfig,
   LiveRequirementExtractionProvider,
   type RequirementBudgetGate,
@@ -136,5 +137,87 @@ describe('approved live Requirement provider boundary', () => {
       workflowConfigHash: anthropicConfig.configHash,
     });
     expect(generate.mock.calls[0]?.[0]).not.toHaveProperty('providerOptions');
+  });
+
+  it('accepts only exact approved provider/model/key combinations', () => {
+    const gate = budget();
+    expect(() =>
+      createApprovedRequirementProvider({
+        config,
+        budget: gate,
+        enabled: () => true,
+      }),
+    ).toThrow('AI_PROVIDER_CONFIGURATION_MISSING');
+    const configWithoutHash = {
+      provider: config.provider,
+      modelId: config.modelId,
+      promptVersion: config.promptVersion,
+      schemaVersion: config.schemaVersion,
+      temperature: config.temperature,
+      timeoutMs: config.timeoutMs,
+      maxRetries: config.maxRetries,
+      maxCostUsd: config.maxCostUsd,
+    };
+    const wrongOpenAi = createLiveRequirementWorkflowConfig({
+      ...configWithoutHash,
+      modelId: 'unapproved-model',
+    });
+    expect(() =>
+      createApprovedRequirementProvider({
+        config: wrongOpenAi,
+        openAiApiKey: 'synthetic-key',
+        budget: gate,
+        enabled: () => true,
+      }),
+    ).toThrow('AI_PROVIDER_CONFIGURATION_MISSING');
+    expect(
+      createApprovedRequirementProvider({
+        config,
+        openAiApiKey: 'synthetic-key',
+        budget: gate,
+        enabled: () => true,
+      }),
+    ).toBeInstanceOf(LiveRequirementExtractionProvider);
+
+    const anthropicConfig = createLiveRequirementWorkflowConfig({
+      provider: 'anthropic',
+      modelId: 'claude-sonnet-5',
+      promptVersion: 'REQUIREMENT_EXTRACTION@1',
+      schemaVersion: '1',
+      temperature: 0,
+      timeoutMs: 30_000,
+      maxRetries: 2,
+      maxCostUsd: 1,
+    });
+    expect(() =>
+      createApprovedRequirementProvider({
+        config: anthropicConfig,
+        budget: gate,
+        enabled: () => true,
+      }),
+    ).toThrow('AI_PROVIDER_CONFIGURATION_MISSING');
+    expect(
+      createApprovedRequirementProvider({
+        config: anthropicConfig,
+        anthropicApiKey: 'synthetic-key',
+        budget: gate,
+        enabled: () => true,
+      }),
+    ).toBeInstanceOf(LiveRequirementExtractionProvider);
+  });
+
+  it('rejects invalid immutable workflow configuration before provider construction', () => {
+    expect(() =>
+      createLiveRequirementWorkflowConfig({
+        provider: 'openai',
+        modelId: '',
+        promptVersion: 'REQUIREMENT_EXTRACTION@1',
+        schemaVersion: '1',
+        temperature: 2,
+        timeoutMs: 1,
+        maxRetries: 9,
+        maxCostUsd: 2,
+      }),
+    ).toThrow();
   });
 });

@@ -68,6 +68,7 @@ describe('M3 Requirement contracts', () => {
       ...envelope,
       conflictId: '01967b7c-1c80-7000-8000-000000000006',
       resolutionId: '01967b7c-1c80-7000-8000-000000000007',
+      expectedConflictRevision: 1,
     };
     expect(
       resolveRequirementConflictCommandSchema.safeParse({
@@ -97,6 +98,7 @@ describe('M3 Requirement contracts', () => {
         ...envelope,
         gapId: '01967b7c-1c80-7000-8000-000000000006',
         dispositionId: '01967b7c-1c80-7000-8000-000000000007',
+        expectedGapRevision: 1,
         command: {
           disposition: 'ACCEPTED_RISK',
           ownerId: '01967b7c-1c80-7000-8000-000000000008',

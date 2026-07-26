@@ -1858,6 +1858,242 @@ export const intakeSetSources = pgTable(
   ],
 );
 
+export const requirementIntakeSets = pgTable(
+  'requirement_intake_sets',
+  {
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    intakeSetId: uuid('intake_set_id').notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => authUsers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.artifactId, table.intakeSetId] }),
+    uniqueIndex('requirement_intake_sets_intake_uidx').on(table.intakeSetId),
+    unique('requirement_intake_sets_scope_unique').on(
+      table.workspaceId,
+      table.projectId,
+      table.artifactId,
+      table.intakeSetId,
+    ),
+    index('requirement_intake_sets_artifact_idx').on(
+      table.workspaceId,
+      table.projectId,
+      table.artifactId,
+      table.createdAt,
+    ),
+    foreignKey({
+      name: 'requirement_intake_sets_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'requirement_intake_sets_intake_fk',
+      columns: [table.workspaceId, table.projectId, table.intakeSetId],
+      foreignColumns: [intakeSets.workspaceId, intakeSets.projectId, intakeSets.id],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const aiWorkflowSettings = pgTable(
+  'ai_workflow_settings',
+  {
+    workspaceId: uuid('workspace_id').primaryKey(),
+    provider: varchar('provider', { length: 16 }).default('openai').notNull(),
+    workflowConfigHash: varchar('workflow_config_hash', { length: 64 }).notNull(),
+    globalEnabled: boolean('global_enabled').default(false).notNull(),
+    requirementExtractionEnabled: boolean('requirement_extraction_enabled')
+      .default(false)
+      .notNull(),
+    provenanceRetentionDays: integer('provenance_retention_days').default(30).notNull(),
+    aggregateQualityMetricsEnabled: boolean('aggregate_quality_metrics_enabled')
+      .default(true)
+      .notNull(),
+    revision: integer('revision').default(1).notNull(),
+    updatedBy: text('updated_by')
+      .notNull()
+      .references(() => authUsers.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'ai_workflow_settings_workspace_fk',
+      columns: [table.workspaceId],
+      foreignColumns: [workspaces.id],
+    }).onDelete('cascade'),
+    check('ai_workflow_settings_provider_check', sql`${table.provider} in ('openai', 'anthropic')`),
+    check('ai_workflow_settings_hash_check', sql`${table.workflowConfigHash} ~ '^[a-f0-9]{64}$'`),
+    check(
+      'ai_workflow_settings_retention_check',
+      sql`${table.provenanceRetentionDays} between 0 and 30`,
+    ),
+    check('ai_workflow_settings_revision_check', sql`${table.revision} > 0`),
+  ],
+);
+
+export const aiBudgetMonths = pgTable(
+  'ai_budget_months',
+  {
+    workspaceId: uuid('workspace_id').notNull(),
+    budgetMonth: date('budget_month').notNull(),
+    reservedMicrousd: bigint('reserved_microusd', { mode: 'number' }).default(0).notNull(),
+    alert50Emitted: boolean('alert_50_emitted').default(false).notNull(),
+    alert80Emitted: boolean('alert_80_emitted').default(false).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.budgetMonth] }),
+    foreignKey({
+      name: 'ai_budget_months_workspace_fk',
+      columns: [table.workspaceId],
+      foreignColumns: [workspaces.id],
+    }).onDelete('cascade'),
+    check(
+      'ai_budget_months_reserved_check',
+      sql`${table.reservedMicrousd} >= 0 and ${table.reservedMicrousd} <= 100000000`,
+    ),
+  ],
+);
+
+export const aiRunReservations = pgTable(
+  'ai_run_reservations',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    intakeSetId: uuid('intake_set_id').notNull(),
+    provider: varchar('provider', { length: 16 }).notNull(),
+    modelId: varchar('model_id', { length: 120 }).notNull(),
+    workflowConfigHash: varchar('workflow_config_hash', { length: 64 }).notNull(),
+    reservedMicrousd: bigint('reserved_microusd', { mode: 'number' }).notNull(),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    state: varchar('state', { length: 16 }).default('RESERVED').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    settledAt: timestamp('settled_at', { withTimezone: true }),
+  },
+  (table) => [
+    unique('ai_run_reservations_workspace_project_id_unique').on(
+      table.workspaceId,
+      table.projectId,
+      table.id,
+    ),
+    index('ai_run_reservations_workspace_time_idx').on(
+      table.workspaceId,
+      table.createdAt,
+      table.id,
+    ),
+    foreignKey({
+      name: 'ai_run_reservations_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'ai_run_reservations_intake_fk',
+      columns: [table.workspaceId, table.projectId, table.intakeSetId],
+      foreignColumns: [intakeSets.workspaceId, intakeSets.projectId, intakeSets.id],
+    }).onDelete('cascade'),
+    check('ai_run_reservations_provider_check', sql`${table.provider} in ('openai', 'anthropic')`),
+    check('ai_run_reservations_hash_check', sql`${table.workflowConfigHash} ~ '^[a-f0-9]{64}$'`),
+    check(
+      'ai_run_reservations_amount_check',
+      sql`${table.reservedMicrousd} > 0 and ${table.reservedMicrousd} <= 1000000`,
+    ),
+    check(
+      'ai_run_reservations_tokens_check',
+      sql`(${table.inputTokens} is null or ${table.inputTokens} >= 0)
+        and (${table.outputTokens} is null or ${table.outputTokens} >= 0)`,
+    ),
+    check(
+      'ai_run_reservations_state_check',
+      sql`${table.state} in ('RESERVED', 'SUCCEEDED', 'FAILED')`,
+    ),
+  ],
+);
+
+export const aiGenerations = pgTable(
+  'ai_generations',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id').notNull(),
+    projectId: uuid('project_id').notNull(),
+    artifactId: uuid('artifact_id').notNull(),
+    intakeSetId: uuid('intake_set_id').notNull(),
+    reservationId: uuid('reservation_id').notNull(),
+    provider: varchar('provider', { length: 16 }).notNull(),
+    modelId: varchar('model_id', { length: 120 }).notNull(),
+    promptVersion: varchar('prompt_version', { length: 120 }).notNull(),
+    schemaVersion: varchar('schema_version', { length: 16 }).notNull(),
+    workflowConfigHash: varchar('workflow_config_hash', { length: 64 }).notNull(),
+    inputHash: varchar('input_hash', { length: 64 }).notNull(),
+    outputHash: varchar('output_hash', { length: 64 }).notNull(),
+    audience: artifactAudience('audience').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('ai_generations_workspace_project_id_unique').on(
+      table.workspaceId,
+      table.projectId,
+      table.id,
+    ),
+    uniqueIndex('ai_generations_reservation_uidx').on(table.reservationId),
+    index('ai_generations_artifact_time_idx').on(
+      table.workspaceId,
+      table.projectId,
+      table.artifactId,
+      table.createdAt,
+    ),
+    foreignKey({
+      name: 'ai_generations_reservation_fk',
+      columns: [table.workspaceId, table.projectId, table.reservationId],
+      foreignColumns: [
+        aiRunReservations.workspaceId,
+        aiRunReservations.projectId,
+        aiRunReservations.id,
+      ],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'ai_generations_artifact_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId],
+      foreignColumns: [artifacts.workspaceId, artifacts.projectId, artifacts.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'ai_generations_intake_scope_fk',
+      columns: [table.workspaceId, table.projectId, table.artifactId, table.intakeSetId],
+      foreignColumns: [
+        requirementIntakeSets.workspaceId,
+        requirementIntakeSets.projectId,
+        requirementIntakeSets.artifactId,
+        requirementIntakeSets.intakeSetId,
+      ],
+    }).onDelete('restrict'),
+    check('ai_generations_provider_check', sql`${table.provider} in ('openai', 'anthropic')`),
+    check(
+      'ai_generations_hash_check',
+      sql`${table.workflowConfigHash} ~ '^[a-f0-9]{64}$'
+        and ${table.inputHash} ~ '^[a-f0-9]{64}$'
+        and ${table.outputHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+  ],
+);
+
+export const aiGenerationPayloads = pgTable(
+  'ai_generation_payloads',
+  {
+    generationId: uuid('generation_id')
+      .primaryKey()
+      .references(() => aiGenerations.id, { onDelete: 'cascade' }),
+    ciphertext: text('ciphertext').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('ai_generation_payloads_expiry_idx').on(table.expiresAt, table.generationId)],
+);
+
 export const documentJobs = pgTable(
   'document_jobs',
   {

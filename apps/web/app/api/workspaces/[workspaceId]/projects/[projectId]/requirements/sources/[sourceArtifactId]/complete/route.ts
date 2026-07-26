@@ -1,4 +1,5 @@
 import { completeSourceUploadSessionCommandSchema } from '@delivery-os/contracts';
+import { ApplicationError } from '@delivery-os/application';
 import { NextResponse, type NextRequest } from 'next/server';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -15,7 +16,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const authContext = await requireUser(request);
     correlationId = authContext.correlationId;
-    if (ingestionStore === null) throw new Error('SOURCE_STORAGE_UNAVAILABLE');
+    if (ingestionStore === null) {
+      throw new ApplicationError({
+        code: 'DEPENDENCY_UNAVAILABLE',
+        message: 'Private source storage is not configured.',
+        correlationId,
+      });
+    }
     const { workspaceId, projectId, sourceArtifactId } = await context.params;
     const body = bodyRecord(await request.json());
     const command = completeSourceUploadSessionCommandSchema.parse({

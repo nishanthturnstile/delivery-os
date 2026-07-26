@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@delivery-os/ai": "workspace:*",
     "@delivery-os/application": "workspace:*",
     "@delivery-os/contracts": "workspace:*",
     "@delivery-os/database": "workspace:*",

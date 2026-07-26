@@ -63,6 +63,126 @@ export class PostgresRequirementStore
 {
   constructor(private readonly pool: DatabasePool) {}
 
+  async createIntakeSet(input: {
+    id: string;
+    workspaceId: string;
+    projectId: string;
+    artifactId: string;
+    actorId: string;
+    expectedRevision: number;
+    sourceGenerationIds: string[];
+    extractionJobId: string;
+    workflowConfigHash: string;
+    idempotencyKey: string;
+    correlationId: string;
+  }): Promise<{ id: string; sourceManifestHash: string }> {
+    if (input.sourceGenerationIds.length === 0) throw notFound(input.correlationId);
+    return this.transaction(async (client) => {
+      const replay = await this.begin(client, 'create-requirement-intake-set', input);
+      if (replay !== undefined) {
+        return replay as { id: string; sourceManifestHash: string };
+      }
+      await this.requireProjectEditor(client, input.actorId, input.workspaceId, input.projectId);
+      const artifact = await client.query<{ revision: number }>(
+        `select revision from artifacts
+          where workspace_id = $1 and project_id = $2 and id = $3
+            and kind_key = 'REQUIREMENT' and state in ('DRAFT', 'CHANGES_REQUESTED')
+          for update`,
+        [input.workspaceId, input.projectId, input.artifactId],
+      );
+      const artifactRow = artifact.rows[0];
+      if (artifactRow === undefined) throw notFound(input.correlationId);
+      if (artifactRow.revision !== input.expectedRevision) throw conflict(input.correlationId);
+      const sources = await client.query<{
+        id: string;
+        expected_sha256: string;
+        audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE';
+      }>(
+        `select generation.id, generation.expected_sha256, source.audience
+           from source_generations generation
+           join source_artifacts source
+             on source.workspace_id = generation.workspace_id
+            and source.project_id = generation.project_id
+            and source.id = generation.source_artifact_id
+          where generation.workspace_id = $1 and generation.project_id = $2
+            and generation.id = any($3::uuid[])
+            and source.current_generation_id = generation.id
+            and source.processing_state = 'SUCCEEDED'
+            and source.retention_state = 'ACTIVE'`,
+        [input.workspaceId, input.projectId, input.sourceGenerationIds],
+      );
+      const byId = new Map(sources.rows.map((source) => [source.id, source]));
+      if (
+        byId.size !== input.sourceGenerationIds.length ||
+        new Set(input.sourceGenerationIds).size !== input.sourceGenerationIds.length
+      ) {
+        throw notFound(input.correlationId);
+      }
+      const manifest = input.sourceGenerationIds.map((sourceGenerationId) => {
+        const source = byId.get(sourceGenerationId);
+        if (source === undefined) throw notFound(input.correlationId);
+        return {
+          sourceGenerationId,
+          sha256: source.expected_sha256,
+          audience: source.audience,
+        };
+      });
+      const sourceManifestHash = sha256CanonicalJson(
+        JSON.parse(JSON.stringify(manifest)) as Parameters<typeof sha256CanonicalJson>[0],
+      ).contentHash;
+      await client.query(
+        `insert into intake_sets
+          (id, workspace_id, project_id, source_manifest_hash, created_by)
+         values ($1, $2, $3, $4, $5)`,
+        [input.id, input.workspaceId, input.projectId, sourceManifestHash, input.actorId],
+      );
+      for (const [ordinal, source] of manifest.entries()) {
+        await client.query(
+          `insert into intake_set_sources
+            (workspace_id, project_id, intake_set_id, source_generation_id, ordinal, audience)
+           values ($1, $2, $3, $4, $5, $6)`,
+          [
+            input.workspaceId,
+            input.projectId,
+            input.id,
+            source.sourceGenerationId,
+            ordinal,
+            source.audience,
+          ],
+        );
+      }
+      await client.query(
+        `insert into requirement_intake_sets
+          (workspace_id, project_id, artifact_id, intake_set_id, created_by)
+         values ($1, $2, $3, $4, $5)`,
+        [input.workspaceId, input.projectId, input.artifactId, input.id, input.actorId],
+      );
+      await client.query(
+        `insert into document_jobs
+          (id, workspace_id, project_id, intake_set_id, job_type, input_hash,
+           config_version, correlation_id)
+         values ($1, $2, $3, $4, 'EXTRACT', $5, $6, $7)`,
+        [
+          input.extractionJobId,
+          input.workspaceId,
+          input.projectId,
+          input.id,
+          sourceManifestHash,
+          input.workflowConfigHash,
+          input.correlationId,
+        ],
+      );
+      const result = { id: input.id, sourceManifestHash };
+      await this.audit(client, input, input.artifactId, 1, 'requirement.intake-set-created', {
+        intakeSetId: input.id,
+        sourceManifestHash,
+        sourceCount: manifest.length,
+      });
+      await this.finish(client, input, result);
+      return result;
+    });
+  }
+
   async publishTemplate(
     input: Parameters<RequirementTemplateStore['publishTemplate']>[0],
   ): ReturnType<RequirementTemplateStore['publishTemplate']> {
@@ -204,7 +324,7 @@ export class PostgresRequirementStore
           input.fieldKey,
           fieldRevision,
           input.state,
-          JSON.stringify(input.value),
+          input.value === null ? null : JSON.stringify(input.value),
           input.audience,
           input.humanNote,
           input.riskOwnerId,
@@ -236,8 +356,12 @@ export class PostgresRequirementStore
       if (replay !== undefined) return replay as { id: string };
       await this.requireProjectEditor(client, input.actorId, input.workspaceId, input.projectId);
       const evidence = await client.query<{ audience: string }>(
-        `select generation.audience
+        `select source.audience
            from source_generations generation
+           join source_artifacts source
+             on source.workspace_id = generation.workspace_id
+            and source.project_id = generation.project_id
+            and source.id = generation.source_artifact_id
            join source_locators locator
              on locator.workspace_id = generation.workspace_id
             and locator.project_id = generation.project_id
@@ -346,6 +470,7 @@ export class PostgresRequirementStore
     id: string;
     workspaceId: string;
     projectId: string;
+    artifactId: string;
     intakeSetId: string;
     fieldKey: string;
     value: unknown;
@@ -356,9 +481,27 @@ export class PostgresRequirementStore
   }): Promise<{ id: string; replayed: boolean; audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE' }> {
     return this.transaction(async (client) => {
       const citations = await client.query<{ id: string; audience: string }>(
-        `select id, audience from requirement_citations
-          where workspace_id = $1 and project_id = $2 and id = any($3::uuid[])`,
-        [input.workspaceId, input.projectId, input.citationIds],
+        `select citation.id, citation.audience
+           from requirement_citations citation
+           join intake_set_sources intake_source
+             on intake_source.workspace_id = citation.workspace_id
+            and intake_source.project_id = citation.project_id
+            and intake_source.source_generation_id = citation.source_generation_id
+           join requirement_intake_sets requirement_intake
+             on requirement_intake.workspace_id = intake_source.workspace_id
+            and requirement_intake.project_id = intake_source.project_id
+            and requirement_intake.intake_set_id = intake_source.intake_set_id
+          where citation.workspace_id = $1 and citation.project_id = $2
+            and citation.id = any($3::uuid[])
+            and requirement_intake.artifact_id = $4
+            and requirement_intake.intake_set_id = $5`,
+        [
+          input.workspaceId,
+          input.projectId,
+          input.citationIds,
+          input.artifactId,
+          input.intakeSetId,
+        ],
       );
       if (citations.rows.length !== input.citationIds.length || citations.rows.length === 0) {
         throw notFound();
@@ -405,17 +548,94 @@ export class PostgresRequirementStore
     });
   }
 
+  async loadExtractionContext(
+    workspaceId: string,
+    projectId: string,
+    intakeSetId: string,
+  ): Promise<{
+    artifactId: string;
+    actorId: string;
+    templateHash: string;
+    blocks: {
+      id: string;
+      sourceGenerationId: string;
+      locatorId: string;
+      text: string;
+      audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE';
+    }[];
+  }> {
+    const context = await this.pool.query<{
+      artifact_id: string;
+      created_by: string;
+      template_hash: string;
+    }>(
+      `select intake.artifact_id, intake.created_by,
+              draft.body_json ->> 'templateHash' as template_hash
+         from requirement_intake_sets intake
+         join artifacts artifact
+           on artifact.workspace_id = intake.workspace_id
+          and artifact.project_id = intake.project_id and artifact.id = intake.artifact_id
+         join artifact_draft_revisions draft on draft.id = artifact.current_draft_revision_id
+        where intake.workspace_id = $1 and intake.project_id = $2
+          and intake.intake_set_id = $3
+          and artifact.kind_key = 'REQUIREMENT'
+          and artifact.state in ('DRAFT', 'CHANGES_REQUESTED')`,
+      [workspaceId, projectId, intakeSetId],
+    );
+    const row = context.rows[0];
+    if (row === undefined || !/^[a-f0-9]{64}$/.test(row.template_hash)) throw notFound();
+    const blocks = await this.pool.query<{
+      id: string;
+      source_generation_id: string;
+      source_locator_id: string;
+      text: string;
+      audience: 'TEAM_ONLY' | 'CLIENT_VISIBLE';
+    }>(
+      `select block.id, block.source_generation_id, block.source_locator_id,
+              block.text, block.audience
+         from intake_set_sources intake_source
+         join normalized_blocks block
+           on block.workspace_id = intake_source.workspace_id
+          and block.project_id = intake_source.project_id
+          and block.source_generation_id = intake_source.source_generation_id
+        where intake_source.workspace_id = $1 and intake_source.project_id = $2
+          and intake_source.intake_set_id = $3
+        order by intake_source.ordinal, block.ordinal, block.id
+        limit 20001`,
+      [workspaceId, projectId, intakeSetId],
+    );
+    if (blocks.rows.length === 0 || blocks.rows.length > 20_000) throw notFound();
+    return {
+      artifactId: row.artifact_id,
+      actorId: row.created_by,
+      templateHash: row.template_hash,
+      blocks: blocks.rows.map((block) => ({
+        id: block.id,
+        sourceGenerationId: block.source_generation_id,
+        locatorId: block.source_locator_id,
+        text: block.text,
+        audience: block.audience,
+      })),
+    };
+  }
+
   async dispositionClaim(input: {
     workspaceId: string;
     projectId: string;
+    artifactId: string;
     actorId: string;
+    expectedRevision: number;
     claimId: string;
     dispositionId: string;
     disposition: 'ACCEPTED' | 'EDITED' | 'REJECTED';
     editedValue: unknown;
     note: string | null;
-  }): Promise<void> {
-    await this.transaction(async (client) => {
+    idempotencyKey: string;
+    correlationId: string;
+  }): Promise<{ revision: number }> {
+    return this.transaction(async (client) => {
+      const replay = await this.begin(client, 'disposition-requirement-claim', input);
+      if (replay !== undefined) return replay as { revision: number };
       await this.requireProjectEditor(client, input.actorId, input.workspaceId, input.projectId);
       if (
         (input.disposition === 'EDITED' && (input.editedValue === null || !input.note?.trim())) ||
@@ -423,12 +643,27 @@ export class PostgresRequirementStore
       ) {
         throw new Error('HUMAN_DISPOSITION_NOTE_REQUIRED');
       }
+      const artifact = await client.query<{ revision: number }>(
+        `select revision from artifacts
+          where workspace_id = $1 and project_id = $2 and id = $3
+            and kind_key = 'REQUIREMENT' and state in ('DRAFT', 'CHANGES_REQUESTED')
+          for update`,
+        [input.workspaceId, input.projectId, input.artifactId],
+      );
+      const artifactRow = artifact.rows[0];
+      if (artifactRow === undefined) throw notFound(input.correlationId);
+      if (artifactRow.revision !== input.expectedRevision) throw conflict(input.correlationId);
       const inserted = await client.query(
         `insert into requirement_claim_dispositions
           (id, workspace_id, project_id, claim_id, disposition, edited_value_json, note, actor_id)
          select $1, $2, $3, claim.id, $5, $6::jsonb, $7, $8
            from requirement_claims claim
+           join requirement_intake_sets intake
+             on intake.workspace_id = claim.workspace_id
+            and intake.project_id = claim.project_id
+            and intake.intake_set_id = claim.intake_set_id
           where claim.workspace_id = $2 and claim.project_id = $3 and claim.id = $4
+            and intake.artifact_id = $9
          on conflict (claim_id) do nothing returning id`,
         [
           input.dispositionId,
@@ -436,12 +671,29 @@ export class PostgresRequirementStore
           input.projectId,
           input.claimId,
           input.disposition,
-          JSON.stringify(input.editedValue),
+          input.editedValue === null ? null : JSON.stringify(input.editedValue),
           input.note,
           input.actorId,
+          input.artifactId,
         ],
       );
-      if ((inserted.rowCount ?? 0) !== 1) throw notFound();
+      if ((inserted.rowCount ?? 0) !== 1) throw notFound(input.correlationId);
+      const revision = artifactRow.revision + 1;
+      await client.query(`update artifacts set revision = $2, updated_at = now() where id = $1`, [
+        input.artifactId,
+        revision,
+      ]);
+      const result = { revision };
+      await this.audit(
+        client,
+        input,
+        input.artifactId,
+        revision,
+        'requirement.claim-disposition-recorded',
+        { claimId: input.claimId, disposition: input.disposition },
+      );
+      await this.finish(client, input, result);
+      return result;
     });
   }
 
@@ -466,8 +718,13 @@ export class PostgresRequirementStore
          insert into requirement_conflicts
           (id, workspace_id, project_id, artifact_id, field_key, fingerprint, claim_ids, severity)
          select $1, $2, $3, $4, $5, $6, $7::uuid[], $8
-          where (select count(*) from requirement_claims
-                  where workspace_id = $2 and project_id = $3 and id = any($7::uuid[]))
+          where (select count(*) from requirement_claims claim
+                  join requirement_intake_sets intake
+                    on intake.workspace_id = claim.workspace_id
+                   and intake.project_id = claim.project_id
+                   and intake.intake_set_id = claim.intake_set_id
+                 where claim.workspace_id = $2 and claim.project_id = $3
+                   and intake.artifact_id = $4 and claim.id = any($7::uuid[]))
                 = cardinality($7::uuid[])
          on conflict (artifact_id, fingerprint) do nothing returning id
        )
@@ -493,15 +750,21 @@ export class PostgresRequirementStore
   async resolveConflict(input: {
     workspaceId: string;
     projectId: string;
+    artifactId: string;
     actorId: string;
     conflictId: string;
     resolutionId: string;
-    expectedRevision: number;
+    expectedArtifactRevision: number;
+    expectedConflictRevision: number;
     selectedClaimId: string | null;
     authoredValue: unknown;
     note: string;
-  }): Promise<void> {
-    await this.transaction(async (client) => {
+    idempotencyKey: string;
+    correlationId: string;
+  }): Promise<{ revision: number }> {
+    return this.transaction(async (client) => {
+      const replay = await this.begin(client, 'resolve-requirement-conflict', input);
+      if (replay !== undefined) return replay as { revision: number };
       await this.requireProjectEditor(client, input.actorId, input.workspaceId, input.projectId);
       if (
         (input.selectedClaimId === null) === (input.authoredValue === null) ||
@@ -509,20 +772,35 @@ export class PostgresRequirementStore
       ) {
         throw new Error('CONFLICT_RESOLUTION_INVALID');
       }
+      const artifact = await client.query<{ revision: number }>(
+        `select revision from artifacts
+          where workspace_id = $1 and project_id = $2 and id = $3
+            and kind_key = 'REQUIREMENT' and state in ('DRAFT', 'CHANGES_REQUESTED')
+          for update`,
+        [input.workspaceId, input.projectId, input.artifactId],
+      );
+      const artifactRow = artifact.rows[0];
+      if (artifactRow === undefined) throw notFound(input.correlationId);
+      if (artifactRow.revision !== input.expectedArtifactRevision) {
+        throw conflict(input.correlationId);
+      }
       const locked = await client.query<{ revision: number; claim_ids: string[] }>(
         `select revision, claim_ids from requirement_conflicts
-          where workspace_id = $1 and project_id = $2 and id = $3 and state = 'OPEN'
+          where workspace_id = $1 and project_id = $2 and artifact_id = $3
+            and id = $4 and state = 'OPEN'
           for update`,
-        [input.workspaceId, input.projectId, input.conflictId],
+        [input.workspaceId, input.projectId, input.artifactId, input.conflictId],
       );
       const conflictRow = locked.rows[0];
-      if (conflictRow === undefined) throw notFound();
-      if (conflictRow.revision !== input.expectedRevision) throw conflict(uuidv7());
+      if (conflictRow === undefined) throw notFound(input.correlationId);
+      if (conflictRow.revision !== input.expectedConflictRevision) {
+        throw conflict(input.correlationId);
+      }
       if (
         input.selectedClaimId !== null &&
         !conflictRow.claim_ids.includes(input.selectedClaimId)
       ) {
-        throw notFound();
+        throw notFound(input.correlationId);
       }
       await client.query(
         `insert into requirement_conflict_resolutions
@@ -535,7 +813,7 @@ export class PostgresRequirementStore
           input.projectId,
           input.conflictId,
           input.selectedClaimId,
-          JSON.stringify(input.authoredValue),
+          input.authoredValue === null ? null : JSON.stringify(input.authoredValue),
           input.note,
           input.actorId,
         ],
@@ -545,6 +823,17 @@ export class PostgresRequirementStore
           where id = $1`,
         [input.conflictId],
       );
+      const revision = artifactRow.revision + 1;
+      await client.query(`update artifacts set revision = $2, updated_at = now() where id = $1`, [
+        input.artifactId,
+        revision,
+      ]);
+      const result = { revision };
+      await this.audit(client, input, input.artifactId, revision, 'requirement.conflict-resolved', {
+        conflictId: input.conflictId,
+      });
+      await this.finish(client, input, result);
+      return result;
     });
   }
 
@@ -595,27 +884,46 @@ export class PostgresRequirementStore
   async dispositionGap(input: {
     workspaceId: string;
     projectId: string;
+    artifactId: string;
     actorId: string;
     gapId: string;
     dispositionId: string;
-    expectedRevision: number;
+    expectedArtifactRevision: number;
+    expectedGapRevision: number;
     disposition: 'RESOLVED' | 'NOT_APPLICABLE' | 'ACCEPTED_RISK';
     fieldRevisionId: string | null;
     justification: string | null;
     riskOwnerId: string | null;
     riskConsequence: string | null;
     riskReviewDate: string | null;
-  }): Promise<void> {
-    await this.transaction(async (client) => {
+    idempotencyKey: string;
+    correlationId: string;
+  }): Promise<{ revision: number }> {
+    return this.transaction(async (client) => {
+      const replay = await this.begin(client, 'disposition-requirement-gap', input);
+      if (replay !== undefined) return replay as { revision: number };
       await this.requireProjectEditor(client, input.actorId, input.workspaceId, input.projectId);
+      const artifact = await client.query<{ revision: number }>(
+        `select revision from artifacts
+          where workspace_id = $1 and project_id = $2 and id = $3
+            and kind_key = 'REQUIREMENT' and state in ('DRAFT', 'CHANGES_REQUESTED')
+          for update`,
+        [input.workspaceId, input.projectId, input.artifactId],
+      );
+      const artifactRow = artifact.rows[0];
+      if (artifactRow === undefined) throw notFound(input.correlationId);
+      if (artifactRow.revision !== input.expectedArtifactRevision) {
+        throw conflict(input.correlationId);
+      }
       const gap = await client.query<{ revision: number }>(
         `select revision from requirement_gaps
-          where workspace_id = $1 and project_id = $2 and id = $3 and state = 'OPEN'
+          where workspace_id = $1 and project_id = $2 and artifact_id = $3
+            and id = $4 and state = 'OPEN'
           for update`,
-        [input.workspaceId, input.projectId, input.gapId],
+        [input.workspaceId, input.projectId, input.artifactId, input.gapId],
       );
-      if (gap.rows[0] === undefined) throw notFound();
-      if (gap.rows[0].revision !== input.expectedRevision) throw conflict(uuidv7());
+      if (gap.rows[0] === undefined) throw notFound(input.correlationId);
+      if (gap.rows[0].revision !== input.expectedGapRevision) throw conflict(input.correlationId);
       const valid =
         (input.disposition === 'RESOLVED' && input.fieldRevisionId !== null) ||
         (input.disposition === 'NOT_APPLICABLE' &&
@@ -649,6 +957,22 @@ export class PostgresRequirementStore
         `update requirement_gaps set state = 'RESOLVED', revision = revision + 1 where id = $1`,
         [input.gapId],
       );
+      const revision = artifactRow.revision + 1;
+      await client.query(`update artifacts set revision = $2, updated_at = now() where id = $1`, [
+        input.artifactId,
+        revision,
+      ]);
+      const result = { revision };
+      await this.audit(
+        client,
+        input,
+        input.artifactId,
+        revision,
+        'requirement.gap-disposition-recorded',
+        { gapId: input.gapId, disposition: input.disposition },
+      );
+      await this.finish(client, input, result);
+      return result;
     });
   }
 
@@ -660,12 +984,25 @@ export class PostgresRequirementStore
   ): Promise<{ claims: unknown[]; conflicts: unknown[]; gaps: unknown[] }> {
     const roles = await this.requireProjectMember(this.pool, actorId, workspaceId, projectId);
     const clientOnly = roles.includes('CLIENT_STAKEHOLDER');
+    const artifact = await this.pool.query(
+      `select 1 from artifacts
+        where workspace_id = $1 and project_id = $2 and id = $3
+          and kind_key = 'REQUIREMENT'
+          and ($4::boolean = false or audience = 'CLIENT_VISIBLE')`,
+      [workspaceId, projectId, artifactId, clientOnly],
+    );
+    if ((artifact.rowCount ?? 0) !== 1) throw notFound();
     const claims = await this.pool.query(
       `select claim.id, claim.field_key, claim.value_json, claim.citation_ids, claim.audience,
               disposition.disposition, disposition.edited_value_json, disposition.note
          from requirement_claims claim
+         join requirement_intake_sets intake
+           on intake.workspace_id = claim.workspace_id
+          and intake.project_id = claim.project_id
+          and intake.intake_set_id = claim.intake_set_id
          left join requirement_claim_dispositions disposition on disposition.claim_id = claim.id
         where claim.workspace_id = $1 and claim.project_id = $2
+          and intake.artifact_id = $3
           and ($4::boolean = false or claim.audience = 'CLIENT_VISIBLE')
         order by claim.created_at, claim.id`,
       [workspaceId, projectId, artifactId, clientOnly],

@@ -52,7 +52,7 @@ export function parseMarkdown(
       flushParagraph(lineNumber - 1);
       const level = heading[1].length;
       headingPath.splice(level - 1);
-      headingPath[level - 1] = normalizeExtractedText(heading[2]);
+      headingPath.push(normalizeExtractedText(heading[2]));
       push('HEADING', heading[2], lineNumber, lineNumber);
     } else if (listItem?.[1] !== undefined) {
       flushParagraph(lineNumber - 1);

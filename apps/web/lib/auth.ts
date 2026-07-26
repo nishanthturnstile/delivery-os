@@ -12,6 +12,7 @@ import {
   authUsers,
   authVerifications,
   createDatabasePool,
+  PostgresAiWorkflowStore,
   PostgresArtifactStore,
   PostgresIdentityStore,
   PostgresIngestionStore,
@@ -42,6 +43,7 @@ const artifactRegistry = new ArtifactKindRegistry();
 artifactRegistry.register(createRequirementArtifactAdapter({ externalProject: false }));
 export const artifactStore = new PostgresArtifactStore(authPool, artifactRegistry);
 export const requirementStore = new PostgresRequirementStore(authPool);
+export const aiWorkflowStore = new PostgresAiWorkflowStore(authPool);
 const sourceStorage =
   process.env.S3_REGION &&
   process.env.S3_BUCKET &&

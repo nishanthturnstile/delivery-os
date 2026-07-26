@@ -88,4 +88,35 @@ describe('artifact export object storage', () => {
       }),
     ).rejects.toThrow(/IMMUTABLE_KEY_COLLISION/);
   });
+
+  it('propagates non-not-found storage failures without attempting an overwrite', async () => {
+    send.mockRejectedValueOnce(new Error('synthetic storage outage'));
+    const body = new TextEncoder().encode('{"safe":true}');
+    const contentHash = createHash('sha256').update(body).digest('hex');
+    await expect(
+      new S3ArtifactExportStorage().putImmutable({
+        key: 'exports/test/result.json',
+        body,
+        contentType: 'application/json',
+        contentHash,
+      }),
+    ).rejects.toThrow('synthetic storage outage');
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('accepts an explicit private endpoint and path-style configuration', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'https://storage.synthetic.invalid');
+    vi.stubEnv('S3_FORCE_PATH_STYLE', 'true');
+    send.mockRejectedValueOnce({ $metadata: { httpStatusCode: 404 } }).mockResolvedValueOnce({});
+    const body = new TextEncoder().encode('{"safe":true}');
+    const contentHash = createHash('sha256').update(body).digest('hex');
+    await expect(
+      new S3ArtifactExportStorage().putImmutable({
+        key: 'exports/test/result.json',
+        body,
+        contentType: 'application/json',
+        contentHash,
+      }),
+    ).resolves.toBeUndefined();
+  });
 });
