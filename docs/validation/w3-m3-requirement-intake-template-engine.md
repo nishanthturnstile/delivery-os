@@ -4,14 +4,16 @@
 **Owner:** Nishanth with Codex
 **Branch base revision:** `ab05c56610a404090c42dbd6cb599ac0cd9e45ed`
 **Reviewed implementation revision:** `51f819af383723329f6fb347ce91c636ba6f814b`
+**Exact deployed source revision:** `dc9b01c7dd87f55266b704ad4ff146a324a4d718`
 **Plan:** [W3 M3 Requirement Intake & Template Engine](../planning/w3-m3-requirement-intake-template-engine.md)
 **External gates:** [W3 M3 external promotion and validation gates](../planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 **Roadmap authority:** [Implementation roadmap](../planning/implementation-roadmap.md)
 
-This record reviews the committed implementation revision above. Railway staging infrastructure
-configuration has been applied, but this exact revision has not yet been deployed and therefore
-cannot satisfy the exact reviewed/deployed revision exit criterion. The following governance-only
-status/evidence commit does not change implementation behavior.
+This record reviews the committed implementation revision above. The exact deployed source revision
+contains only the implementation plus governance/evidence commits and is running in the isolated
+Railway staging environment. Later governance-only evidence commits do not change implementation
+behavior. Deployment health is necessary evidence but does not satisfy the remaining promotion
+gates.
 
 ## Implemented slices
 
@@ -56,12 +58,14 @@ status/evidence commit does not change implementation behavior.
 - **K — controlled staging (partial):** applied Railway staging IaC operation
   `oKCxkzWOvgxz83OfqZQ7w` in environment
   `f7544a5c-065b-4eca-9eb8-577008ed6896`: 13 safe changes, zero destructive changes. The private
-  ClamAV/OCR topology and disabled AI configuration are present. Cloudflare Wrangler is not
-  authenticated, the primary/backup R2 resources are absent, and the exact reviewed revision has
-  not yet been deployed or validated. An exact-revision deployment attempt found and then
-  forward-fixed a missing direct worker runtime dependency; the replacement revision must pass CI
-  and be redeployed before staging evidence is accepted. An initial OCR local upload used the wrong
-  archive root and failed before image build; the corrected repository-root upload was accepted.
+  ClamAV/OCR topology and disabled AI configuration are present. Revision
+  `dc9b01c7dd87f55266b704ad4ff146a324a4d718` passed CI and was deployed successfully to web,
+  worker, and OCR. All 11 forward migrations are applied and the six required M3 tables exist.
+  Cloudflare Wrangler is not authenticated and the primary/backup R2 resources are absent, so
+  every-format, restore/purge, and load validation remain blocked. An earlier exact-revision
+  deployment found and forward-fixed a missing direct worker runtime dependency. An initial OCR
+  local upload used the wrong archive root and failed before image build; the corrected
+  repository-root upload was accepted.
 
 ## Local verification
 
@@ -86,8 +90,28 @@ status/evidence commit does not change implementation behavior.
 | `pnpm audit --prod --audit-level high` | Passed the High threshold; one Moderate vulnerability reported. |
 | Working-tree secret scan | Passed using pinned Gitleaks 8.30.0 in a container: approximately 4.16 MB scanned with no leak found. Full Git-history scan reported one redacted pre-existing historical finding; its content was not exposed or copied. |
 | Web/worker/OCR image scan | Passed Trivy 0.69.3 with zero fixed High/Critical findings. |
+| GitHub CI for deployed source revision | Passed all 5 jobs in run `30208220862`: validate, secret scan, web image, worker image, and OCR image. |
+| Railway migration/readiness | Passed: 11 migration records, six required M3 tables, and web readiness reported PostgreSQL and Redis up after the coordinated credential rotation. |
 
-## Exact local image evidence
+## Exact image and deployment evidence
+
+- Exact Railway web image:
+  `sha256:be0c0839f9b9cb071ffa58a146d78c41f272d37dc33d4d58d1e51bef9640051b`.
+- Exact Railway worker image:
+  `sha256:a4eab81af2c3f279f6f874b0408703612e317c498e9d779173299cbd6ad333f8`.
+- Exact Railway OCR image:
+  `sha256:9d66f04d3f23c1c9c01585919ebcf2de4229eddf22dc508ab0f1c1da0afe5292`.
+- Initial exact deployments: web `ead6850c-379d-4a7d-8273-90a862957e38`, worker
+  `a6883f1d-75ff-47b0-acff-c4a03f847828`, and OCR
+  `4d4a222f-17ce-44c2-9daf-5c104de3b9dc`.
+- Post-credential-rotation deployments: web `8efaef2f-f943-448c-8f6d-d86cad8e6ff0`
+  and worker `2f425fc7-09bb-4345-a7c2-9f4d9fd2d615`, both successful with the same
+  exact image digests. The first worker rotation attempt
+  `4fd95a2f-36b8-44a1-a895-f26277f06b99` failed closed because Railway's generated
+  connection URLs still contained the old password; the URLs were repaired without printing
+  either secret and the successful replacement passed readiness.
+- OCR and ClamAV have no public Railway domains. The only application domain is
+  `https://web-staging-5e5c.up.railway.app`.
 
 - Prior web candidate:
   `sha256:8d14decddbd578faac329ff811aeb2b561da39b4976ee1ca60dd974a852eac42`.
@@ -126,6 +150,12 @@ behavior, not OCR acceptance evidence.
   submission, approval, audience broadening, or baseline creation.
 - Fixtures are synthetic. No source body, signed URL, secret, provider prompt/response, or private
   Team-only content was added to logs or evidence.
+- During the private migration tunnel, the current staging PostgreSQL credential appeared in tool
+  output. The temporary tunnel/log was closed and removed immediately. PostgreSQL role state,
+  Railway secret variables, generated connection URLs, and dependent web/worker deployments were
+  rotated together; the replacement value was never printed. Readiness was rechecked after
+  replacement. This remediates the current staging credential finding but does not close the
+  separate historical repository finding below.
 
 ## Exit-gate gaps and manual account-owner actions
 
@@ -144,10 +174,11 @@ The owner policy decisions are recorded. The remaining actions and decisions are
    synthetic English corpus/gold annotations, then review two consecutive exact-image runs. If
    every threshold passes, approve the candidate digest in a separate human promotion change.
    Codex cannot set `recognitionEnabled` or self-approve.
-3. **Codex — Railway exact-revision validation:** the owner-approved staging IaC apply succeeded
-   with 13 safe changes and no destroys. Deploy the exact PR revision, verify 4-vCPU/8-GiB OCR
-   ceiling, concurrency 1, no public OCR/ClamAV domain, private service authentication, and network
-   egress policy, then run every-format and load checks.
+3. **Codex — remaining Railway validation:** the owner-approved staging IaC apply, exact-revision
+   deployment, migrations, health/readiness, and no-public-domain checks passed. The 4-vCPU/8-GiB
+   OCR ceiling, authenticated private recognition, network-egress restriction, every-format
+   journey, and twenty-job load/backpressure test still require the promoted OCR configuration and
+   provisioned object storage.
 4. **Nishanth — Cloudflare authentication:** authenticate Wrangler on this machine, or provide an
    approved Cloudflare connector/session. Current `wrangler whoami` reports unauthenticated. Only
    then can Codex create `delivery-os-staging-primary` and `delivery-os-staging-backup`, `enam`
@@ -170,6 +201,7 @@ Because these criteria are not satisfied, the Section 16 exit gate did not pass.
 ## Final source inventory
 
 The implementation inventory is Git commit
-`51f819af383723329f6fb347ce91c636ba6f814b`. It is local evidence only, not a deployed or promoted
-revision. The user's unrelated staged `apps/web/next-env.d.ts` change was excluded from M3 and
-remains outside both M3 commits.
+`51f819af383723329f6fb347ce91c636ba6f814b`; deployed source revision
+`dc9b01c7dd87f55266b704ad4ff146a324a4d718` adds evidence-only commits. This is deployed staging
+evidence, not promoted OCR/AI or M3 completion evidence. The user's unrelated staged
+`apps/web/next-env.d.ts` change was excluded from M3 and remains outside every M3 commit.
