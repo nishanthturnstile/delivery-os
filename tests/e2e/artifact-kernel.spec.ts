@@ -5,8 +5,9 @@ test('preserves a stale editor and remains accessible at desktop and mobile size
   page,
 }) => {
   test.skip(
-    process.env.PLAYWRIGHT_BASE_URL !== undefined,
-    'The synthetic fixture is intentionally unavailable outside local/test.',
+    process.env.PLAYWRIGHT_BASE_URL !== undefined &&
+      process.env.ARTIFACT_KERNEL_FIXTURE_ENABLED !== 'true',
+    'The synthetic fixture requires the explicit staging validation flag.',
   );
   await page.route('**/artifacts/*/drafts', async (route) => {
     await route.fulfill({
@@ -40,8 +41,9 @@ test('preserves a stale editor and remains accessible at desktop and mobile size
 
 test('renders the frozen review and immutable decision pattern', async ({ page }) => {
   test.skip(
-    process.env.PLAYWRIGHT_BASE_URL !== undefined,
-    'The synthetic fixture is intentionally unavailable outside local/test.',
+    process.env.PLAYWRIGHT_BASE_URL !== undefined &&
+      process.env.ARTIFACT_KERNEL_FIXTURE_ENABLED !== 'true',
+    'The synthetic fixture requires the explicit staging validation flag.',
   );
   await page.route('**/artifacts/*/reviews', async (route) => {
     await route.fulfill({
@@ -70,10 +72,59 @@ test('renders the frozen review and immutable decision pattern', async ({ page }
       name: /I reviewed the frozen snapshot and understand the decision is recorded immutably/,
     })
     .check();
-  await page.getByRole('button', { name: 'Approve' }).click();
+  await page.getByRole('button', { name: 'Approve' }).first().click();
   await expect(page.getByText('Decision recorded: approve.')).toBeVisible();
   await expect(page.getByText('APPROVED', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Baseline diff' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test('requires rationale for a binding rejection and creates a new resubmission', async ({
+  page,
+}) => {
+  test.skip(
+    process.env.PLAYWRIGHT_BASE_URL !== undefined &&
+      process.env.ARTIFACT_KERNEL_FIXTURE_ENABLED !== 'true',
+    'The synthetic fixture requires the explicit staging validation flag.',
+  );
+  let submission = 0;
+  await page.route('**/artifacts/*/reviews', async (route) => {
+    submission += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        revision: submission === 1 ? 2 : 4,
+        state: 'IN_REVIEW',
+        approvalRequestId:
+          submission === 1
+            ? '019d0000-0000-7000-8000-000000000010'
+            : '019d0000-0000-7000-8000-000000000011',
+      }),
+    });
+  });
+  await page.route('**/reviews/*/decisions', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ revision: 3, state: 'CHANGES_REQUESTED' }),
+    });
+  });
+  await page.goto('/dev/artifact-kernel');
+  await page.getByRole('button', { name: 'Submit frozen review' }).click();
+  const clientSlot = page.getByText(/Client Stakeholder · binding external/).locator('..');
+  await expect(clientSlot.getByRole('button', { name: 'Reject' })).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Decision comment' }).fill('Please revise the scope.');
+  await page
+    .getByRole('checkbox', {
+      name: /I reviewed the frozen snapshot and understand the decision is recorded immutably/,
+    })
+    .check();
+  await clientSlot.getByRole('button', { name: 'Reject' }).click();
+  await expect(page.getByText('Decision recorded: reject.')).toBeVisible();
+  await page.getByRole('button', { name: 'Submit frozen review' }).click();
+  await expect(page.getByText('Frozen review snapshot submitted.')).toBeVisible();
+  expect(submission).toBe(2);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

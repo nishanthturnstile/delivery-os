@@ -5,11 +5,17 @@ import { ArtifactWorkspace } from '../../workspaces/[workspaceId]/projects/[proj
 export const dynamic = 'force-dynamic';
 
 export default function ArtifactKernelFixturePage() {
-  if (!['local', 'test'].includes(process.env.APP_ENV ?? 'local')) notFound();
+  const fixtureEnabled =
+    ['local', 'test'].includes(process.env.APP_ENV ?? 'local') ||
+    process.env.ARTIFACT_KERNEL_FIXTURE_ENABLED === 'true';
+  if (!fixtureEnabled) notFound();
   return (
     <ArtifactWorkspace
       approvals={[]}
-      decisionSlots={[{ key: 'pm', label: 'Project Manager', scope: 'INTERNAL' }]}
+      decisionSlots={[
+        { key: 'pm', label: 'Project Manager', scope: 'INTERNAL' },
+        { key: 'client', label: 'Client Stakeholder', scope: 'EXTERNAL_BINDING' },
+      ]}
       artifact={{
         id: '019d0000-0000-7000-8000-000000000001',
         workspaceId: '019d0000-0000-7000-8000-000000000002',
