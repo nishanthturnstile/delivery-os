@@ -1,7 +1,7 @@
 # W2 M2 Client & Project Registry — Validation Record
 
-**Validation result:** Blocked — implementation, CI, migration, deployment, automated browser, and
-operational gates pass; controlled-inbox public acceptance remains
+**Validation result:** Complete — implementation, CI, migration, deployment, controlled-email
+acceptance, desktop/mobile browser, accessibility, security, and operational gates pass
 
 **Date:** 2026-07-26
 
@@ -15,7 +15,7 @@ operational gates pass; controlled-inbox public acceptance remains
 
 **Published revision:** `d6c64cd1d6cca5bad0b8ebe18d37392f76d272f6`
 
-**Remaining acceptance issue:**
+**Acceptance issue:**
 [#2](https://github.com/nishanthturnstile/delivery-os/issues/2)
 
 ## 1. Outcome
@@ -28,11 +28,14 @@ records, an outcome Module placeholder, and responsive authenticated browser sur
 The reviewed source is merged, repository CI is green, migration `0002` is applied, the exact
 implementation merge revision reached terminal success on Railway web and worker, and public
 health/readiness and unauthenticated boundary smoke pass. That implementation revision remains in
-the ancestry of the current healthy `main` release. M2 is `Blocked` solely because the required
-public authenticated invitation journey needs access to controlled internal and
-client-stakeholder mailboxes. That external acceptance is tracked in
-[#2](https://github.com/nishanthturnstile/delivery-os/issues/2); the module must not move to
-`Complete` until its sanitized desktop/mobile evidence is added here.
+the ancestry of the current healthy `main` release.
+
+The previously external acceptance in
+[#2](https://github.com/nishanthturnstile/delivery-os/issues/2) now passes. The public desktop and
+mobile browser journeys used separate Resend-controlled test identities, retrieved the verification
+and project invitation links through the authenticated Resend CLI, and completed the full M2
+workflow. Provider events, runtime logs, metrics, outbox processing, accessibility checks, reflow,
+and visually reviewed screenshots all pass, so the M2 exit gate is closed.
 
 The linked Railway project has one environment named `production`; its application configuration
 remains `APP_ENV=staging`. This record names that topology accurately instead of implying a second
@@ -63,6 +66,11 @@ The implementation uses exact stable pins for Next.js `16.2.11`, React `19.2.8`,
 `0.45.2`, Zod `4.4.3`, Base UI `1.6.0`, axe-playwright `4.12.1`, and Playwright `1.62.0`.
 Drizzle `1.0` remains prerelease and was not selected.
 
+Resend CLI `2.10.0` reported itself current, accepted the deployment-scoped credential, and
+confirmed `discovery.thaarei.com` verified with no pending domain. The public test used Resend's
+[documented delivered test recipients](https://resend.com/docs/knowledge-base/what-email-addresses-to-use-for-testing)
+with unique labels; no API key was copied into source, chat, test artifacts, or local credentials.
+
 A live production dependency audit disclosed new High advisories in transitive `sharp`, `postcss`,
 and `brace-expansion` releases. Compatible workspace resolutions now select stable `sharp 0.35.3`,
 `postcss 8.5.23`, and `brace-expansion 5.0.8`. The resulting production audit has zero Critical or
@@ -91,11 +99,13 @@ M2 no-High/no-Critical exit gate.
 | Repository publication | Passed: PR [#1](https://github.com/nishanthturnstile/delivery-os/pull/1) merged as `d6c64cd1`; all five required [CI jobs](https://github.com/nishanthturnstile/delivery-os/actions/runs/30183606465) passed |
 | Railway migration | Passed: migration chain is at 3 records and sampled M2 tables are present; an immediate repeat was idempotent |
 | Railway web/worker deployment | Passed: web `b3988a2e-4880-4fd8-b1bf-09d3431541eb` and worker `5101e7cd-8281-44cb-ba8f-e976955c9f13` reached terminal `SUCCESS` on exact implementation revision `d6c64cd1`; the superseding documentation-only `main` release also reached `SUCCESS` |
-| Public liveness/readiness | Passed: `/api/health` and `/api/ready`; PostgreSQL 25.37 ms and Redis 7.65 ms in the post-merge sample |
-| Public boundary smoke | Passed: 6/6 unauthenticated and safe-boundary checks |
-| Post-merge logs and metrics | Passed: no web/worker deploy errors, no HTTP 5xx, 0% sampled HTTP error rate; web averaged 0.0014 CPU and 0.0648 GB memory, worker 0.0030 CPU and 0.1174 GB memory over one hour |
-| Worker/outbox processing | Passed: three sampled M2 outbox records reached `DISPATCHED` |
-| Controlled-inbox public authenticated journey | Blocked: requires account-owner mailbox access; tracked in [#2](https://github.com/nishanthturnstile/delivery-os/issues/2) |
+| Public liveness/readiness | Passed after acceptance: `/api/health` and `/api/ready`; PostgreSQL 19.24 ms and Redis 16.47 ms |
+| Public boundary smoke | Passed: 2/2 retained desktop/mobile deployed checks in the closure run; prior 6/6 safe-boundary checks retained |
+| Resend provider acceptance | Passed: 11/11 labeled closure messages reached `delivered` — 8 account verifications and 3 project invitations |
+| Public authenticated M2 journey | Passed: complete desktop Chromium and Pixel 7 journeys; an additional mobile evidence rerun passed |
+| Public accessibility, reflow, and visual review | Passed: zero axe violations, no horizontal viewport overflow, and 12 sanitized desktop/mobile screenshots reviewed |
+| Post-acceptance logs and metrics | Passed: no web/worker runtime errors or HTTP 5xx; 415 sampled requests, 0% error rate; web averaged 0.00176 vCPU/90.79 MB and worker 0.00153 vCPU/109.95 MB over one hour |
+| Worker/outbox processing | Passed: all 45 closure-run events reached `DISPATCHED`, including project creation, capacity, lifecycle, invitation acceptance, and identity events |
 
 The browser registry scenario creates two workspaces, two clients, an internal project, and an
 external project. It edits profile/calendar/availability data, records a calendar exception,
@@ -138,17 +148,32 @@ terminal `SUCCESS`; the public liveness/readiness probes, migration state, worke
 processing, bounded runtime and HTTP error logs, service metrics, and retained public boundary
 smoke passed.
 
-## 7. Manual Acceptance Required
+## 7. Public Controlled-Email Acceptance
 
-The account owner must complete
-[#2](https://github.com/nishanthturnstile/delivery-os/issues/2) against the public Railway URL with
-controlled mailboxes. The run must verify a new internal account, establish recent TOTP, exercise
-Client and internal/external Project flows, and accept the linked workspace/project invitation from
-a separately verified client-stakeholder mailbox. It must also confirm the minimal stakeholder
-surface, lifecycle/readiness behavior, portfolio filters, cross-workspace denial, desktop
-Chromium, mobile reflow, and accessibility.
+The closure run used unique `delivered+label@resend.dev` identities for the internal Admin and
+Client Stakeholder. Resend CLI authenticated only from the Railway-injected environment credential,
+listed the exact recipient/subject messages, retrieved their bodies in the test process, and passed
+only the extracted one-time links to Playwright. Eleven relevant messages were observed and all
+reached the provider's `delivered` event.
 
-Do not put credentials, TOTP seeds, cookies, invitation tokens, or unredacted mailbox content in
-the issue or this record. Add sanitized screenshots/results here and then move both roadmap M2
-status locations from `Blocked` to `Complete` only if that public acceptance passes without an
-unresolved Critical/High defect.
+Desktop Chromium and Pixel 7 each:
+
+1. registered and verified separate Admin and Client Stakeholder accounts;
+2. created the primary and boundary workspaces and enabled TOTP;
+3. created two Clients plus internal and external Projects;
+4. edited profile, availability, and calendar data;
+5. exercised Draft → Intake → On Hold → Intake and the external readiness denial;
+6. accepted the explicit project invitation as the matching verified stakeholder;
+7. confirmed the stakeholder-only holding surface hides Clients, Projects, people, and portfolio;
+8. filtered the portfolio and proved a foreign-workspace Project returns 404; and
+9. passed axe and horizontal-overflow assertions at every captured checkpoint.
+
+Twelve sanitized screenshots were visually reviewed. The desktop layout remained coherent and the
+mobile layout stacked forms, filters, project details, lifecycle controls, and the stakeholder
+holding surface without clipped controls or horizontal viewport overflow. Credentials, TOTP seeds,
+cookies, invitation tokens, and email bodies were not persisted in evidence.
+
+After the browser run, health/readiness remained green, bounded web/worker logs contained no
+runtime errors, HTTP logs contained no 5xx responses, and all 45 closure-run outbox records were
+`DISPATCHED`. Issue [#2](https://github.com/nishanthturnstile/delivery-os/issues/2) is the closure
+trail for this acceptance.

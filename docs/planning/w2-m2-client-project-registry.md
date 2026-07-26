@@ -1,6 +1,6 @@
 # W2 M2 Client & Project Registry — Execution Packet
 
-**Plan status:** Approved; implementation complete and exit-gate validation active
+**Plan status:** Approved and executed; exit-gate evidence recorded in the validation record
 **Owner:** Projects & Clients
 **Specification snapshot reviewed:** `16638a6`
 **Approved specification commit:** `16638a6`

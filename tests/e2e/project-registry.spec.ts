@@ -1,7 +1,13 @@
 import { createHmac } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type APIRequestContext, type Page, test } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, test, type TestInfo } from '@playwright/test';
+
+const execFileAsync = promisify(execFile);
 
 interface MailpitSummary {
   messages: {
@@ -15,8 +21,60 @@ interface MailpitMessage {
   Text: string;
 }
 
+interface ResendEmailSummary {
+  id: string;
+  subject: string;
+  to: string[];
+}
+
+interface ResendEmailList {
+  data: ResendEmailSummary[];
+}
+
+interface ResendEmail {
+  html: string | null;
+  text: string | null;
+}
+
 interface WorkspaceList {
   workspaces: { id: string; name: string }[];
+}
+
+async function resendJson<T>(args: string[]): Promise<T> {
+  const { stdout } = await execFileAsync(
+    process.env.RESEND_CLI_PATH ?? '/home/nishanth/.resend/bin/resend',
+    ['--json', ...args],
+    {
+      env: process.env,
+      maxBuffer: 10 * 1024 * 1024,
+    },
+  );
+  return JSON.parse(stdout) as T;
+}
+
+async function latestResendEmailLink(email: string, subject: string): Promise<string> {
+  let link = '';
+  await expect
+    .poll(
+      async () => {
+        const summary = await resendJson<ResendEmailList>(['emails', 'list', '--limit', '100']);
+        const message = summary.data.find(
+          (item) => item.subject === subject && item.to.includes(email),
+        );
+        if (message === undefined) return '';
+        const detail = await resendJson<ResendEmail>(['emails', 'get', message.id]);
+        const body = detail.text ?? detail.html ?? '';
+        link = /https?:\/\/[^\s<"]+/.exec(body)?.[0]?.replaceAll('&amp;', '&') ?? '';
+        return link;
+      },
+      {
+        timeout: 60_000,
+        intervals: [1_000, 2_000, 3_000],
+        message: `waiting for Resend ${subject}`,
+      },
+    )
+    .not.toBe('');
+  return link;
 }
 
 async function latestEmailLink(
@@ -24,6 +82,9 @@ async function latestEmailLink(
   email: string,
   subject: string,
 ): Promise<string> {
+  if (process.env.RESEND_API_KEY !== undefined) {
+    return latestResendEmailLink(email, subject);
+  }
   let link = '';
   await expect
     .poll(
@@ -112,6 +173,19 @@ async function expectAccessibleWithoutOverflow(page: Page) {
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 }
 
+async function captureAcceptance(page: Page, testInfo: TestInfo, step: string) {
+  const auditRoot = process.env.M2_AUDIT_DIR;
+  if (auditRoot === undefined) return;
+  await expectAccessibleWithoutOverflow(page);
+  await mkdir(auditRoot, { recursive: true });
+  const project = testInfo.project.name === 'chromium' ? 'desktop' : 'mobile';
+  await page.screenshot({
+    animations: 'disabled',
+    fullPage: true,
+    path: path.join(auditRoot, `${project}-${step}.png`),
+  });
+}
+
 test('runs the complete client, project, readiness, and stakeholder flow', async ({
   browser,
   page,
@@ -119,8 +193,13 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
 }, testInfo) => {
   test.slow();
   const suffix = `${testInfo.project.name.replaceAll(/[^a-z]/g, '')}-${Date.now()}`;
-  const adminEmail = `m2-admin-${suffix}@company.example`;
-  const stakeholderEmail = `m2-client-${suffix}@personal.example`;
+  const usesResend = process.env.RESEND_API_KEY !== undefined;
+  const adminEmail = usesResend
+    ? `delivered+m2-admin-${suffix}@resend.dev`
+    : `m2-admin-${suffix}@company.example`;
+  const stakeholderEmail = usesResend
+    ? `delivered+m2-client-${suffix}@resend.dev`
+    : `m2-client-${suffix}@personal.example`;
   const password = process.env.E2E_TEST_PASSWORD ?? ['E2E', 'only', 'password', '2026!'].join('-');
   const clientName = `Acme ${suffix}`;
   const internalName = `Internal launch ${suffix}`;
@@ -145,6 +224,7 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
   await page.getByLabel('Enrollment code').fill(currentTotp(totpUri));
   await page.getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByText('ENABLED')).toBeVisible();
+  await captureAcceptance(page, testInfo, '01-admin-mfa-enabled');
 
   const secondWorkspaceName = `M2 Boundary ${suffix}`;
   const createSecondWorkspace = await page.request.post('/api/workspaces', {
@@ -191,6 +271,7 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
   await page.getByLabel('Primary contact email').fill(`internal-${suffix}@company.example`);
   await page.getByRole('button', { name: 'Create client' }).click();
   await expect(page.getByText(`Internal client ${suffix}`, { exact: true })).toBeVisible();
+  await captureAcceptance(page, testInfo, '02-client-registry');
 
   const stakeholderContext = await browser.newContext({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:53000',
@@ -260,6 +341,7 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
   await page.getByRole('button', { name: 'Evaluate and transition' }).click();
   await expect(page.getByText('Project moved to INTAKE.')).toBeVisible();
   await expectAccessibleWithoutOverflow(page);
+  await captureAcceptance(page, testInfo, '03-internal-project-lifecycle');
 
   await page.getByLabel('Project type').selectOption('EXTERNAL');
   await page.locator('#project-name').fill(externalName);
@@ -274,6 +356,7 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
   await page.getByLabel('Requested state').selectOption('INTAKE');
   await page.getByRole('button', { name: 'Evaluate and transition' }).click();
   await expect(page.getByText(/Activate at least one client stakeholder/)).toBeVisible();
+  await captureAcceptance(page, testInfo, '04-external-readiness-denial');
 
   const projectInvitationLink = await latestEmailLink(
     request,
@@ -298,7 +381,12 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
   await expect(stakeholderPage.getByRole('button', { name: 'Projects', exact: true })).toHaveCount(
     0,
   );
+  const closeStakeholderNavigation = stakeholderPage.getByRole('button', {
+    name: 'Close navigation',
+  });
+  if (await closeStakeholderNavigation.isVisible()) await closeStakeholderNavigation.click();
   await expectAccessibleWithoutOverflow(stakeholderPage);
+  await captureAcceptance(stakeholderPage, testInfo, '05-client-stakeholder-holding-surface');
 
   await openSection(page, 'Overview');
   await openSection(page, 'Projects');
@@ -332,6 +420,7 @@ test('runs the complete client, project, readiness, and stakeholder flow', async
     ).status(),
   ).toBe(404);
   await expectAccessibleWithoutOverflow(page);
+  await captureAcceptance(page, testInfo, '06-portfolio-filter-and-tenant-boundary');
 
   await stakeholderContext.close();
 });
