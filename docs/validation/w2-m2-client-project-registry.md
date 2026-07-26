@@ -25,11 +25,12 @@ and Project registries, independent project roles, linked stakeholder invitation
 availability management, governed lifecycle/readiness, portfolio search and filters, audit/outbox
 records, an outcome Module placeholder, and responsive authenticated browser surfaces.
 
-The reviewed source is merged, repository CI is green, migration `0002` is applied, the exact merge
-revision is running successfully on Railway web and worker, and public health/readiness and
-unauthenticated boundary smoke pass. M2 is `Blocked` solely because the required public
-authenticated invitation journey needs access to controlled internal and client-stakeholder
-mailboxes. That external acceptance is tracked in
+The reviewed source is merged, repository CI is green, migration `0002` is applied, the exact
+implementation merge revision reached terminal success on Railway web and worker, and public
+health/readiness and unauthenticated boundary smoke pass. That implementation revision remains in
+the ancestry of the current healthy `main` release. M2 is `Blocked` solely because the required
+public authenticated invitation journey needs access to controlled internal and
+client-stakeholder mailboxes. That external acceptance is tracked in
 [#2](https://github.com/nishanthturnstile/delivery-os/issues/2); the module must not move to
 `Complete` until its sanitized desktop/mobile evidence is added here.
 
@@ -89,7 +90,7 @@ M2 no-High/no-Critical exit gate.
 | Backup restore test | Passed in disposable PostgreSQL 18.4; both recorded migrations restored |
 | Repository publication | Passed: PR [#1](https://github.com/nishanthturnstile/delivery-os/pull/1) merged as `d6c64cd1`; all five required [CI jobs](https://github.com/nishanthturnstile/delivery-os/actions/runs/30183606465) passed |
 | Railway migration | Passed: migration chain is at 3 records and sampled M2 tables are present; an immediate repeat was idempotent |
-| Railway web/worker deployment | Passed: web `b3988a2e-4880-4fd8-b1bf-09d3431541eb` and worker `5101e7cd-8281-44cb-ba8f-e976955c9f13` are `SUCCESS` on exact revision `d6c64cd1` |
+| Railway web/worker deployment | Passed: web `b3988a2e-4880-4fd8-b1bf-09d3431541eb` and worker `5101e7cd-8281-44cb-ba8f-e976955c9f13` reached terminal `SUCCESS` on exact implementation revision `d6c64cd1`; the superseding documentation-only `main` release also reached `SUCCESS` |
 | Public liveness/readiness | Passed: `/api/health` and `/api/ready`; PostgreSQL 25.37 ms and Redis 7.65 ms in the post-merge sample |
 | Public boundary smoke | Passed: 6/6 unauthenticated and safe-boundary checks |
 | Post-merge logs and metrics | Passed: no web/worker deploy errors, no HTTP 5xx, 0% sampled HTTP error rate; web averaged 0.0014 CPU and 0.0648 GB memory, worker 0.0030 CPU and 0.1174 GB memory over one hour |
