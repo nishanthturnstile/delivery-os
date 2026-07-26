@@ -3,14 +3,15 @@
 **Reviewed:** 2026-07-26
 **Owner:** Nishanth with Codex
 **Branch base revision:** `ab05c56610a404090c42dbd6cb599ac0cd9e45ed`
-**Reviewed implementation revision:** `271444bc7db835487591d4e303c0681154ee73da`
+**Reviewed implementation revision:** `fc2d41234572bbcbe519c19d94460a7df5a738e8`
 **Plan:** [W3 M3 Requirement Intake & Template Engine](../planning/w3-m3-requirement-intake-template-engine.md)
 **External gates:** [W3 M3 external promotion and validation gates](../planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 **Roadmap authority:** [Implementation roadmap](../planning/implementation-roadmap.md)
 
-This record reviews the committed implementation revision above. It is not a deployed revision and
-therefore cannot satisfy the exact reviewed/deployed revision exit criterion. The following
-governance-only status/evidence commit does not change implementation behavior.
+This record reviews the committed implementation revision above. Railway staging infrastructure
+configuration has been applied, but this exact revision has not yet been deployed and therefore
+cannot satisfy the exact reviewed/deployed revision exit criterion. The following governance-only
+status/evidence commit does not change implementation behavior.
 
 ## Implemented slices
 
@@ -35,12 +36,13 @@ governance-only status/evidence commit does not change implementation behavior.
   authoring, including human-only N/A justification and Accepted Risk ownership/review controls.
 - **G — intelligence:** added append-only claims/citations/conflicts/gaps, human-only dispositions,
   deterministic readiness checks, optimistic concurrency, and client-safe intelligence reads.
-- **H — AI boundary (partial):** added provider-neutral strict extraction, deterministic fake,
+- **H — AI boundary (implemented, not promoted):** added provider-neutral strict extraction, deterministic fake,
   citation validation, explicit OpenAI/Anthropic Vercel AI SDK adapters, no-fallback routing,
   `store: false`, exact pinned workflow configurations, per-workflow enable checks, budget-gate
-  interface, and manual fallback. Persistent budget reservation, encrypted 30-day provenance,
-  worker extraction composition, UI trigger/quality review, provider secrets, and two live frozen
-  evaluations are not complete.
+  interface, conservative database-backed USD 1/run and USD 100/month reservation with USD 50/80
+  alerts, encrypted configurable 0-30-day provenance, worker extraction composition, global and
+  workflow kill switches, UI trigger/quality review, and manual fallback. Provider secrets, alert
+  delivery, and two live frozen evaluations are not complete.
 - **I — S3 integration:** atomically binds Requirement readiness to the existing frozen artifact
   review snapshot and preserves the generic S3 adapter behavior.
 - **J — product and operations (partial):** added workspace/project-authorized APIs, responsive manual
@@ -48,21 +50,24 @@ governance-only status/evidence commit does not change implementation behavior.
   accessible errors/status, synthetic desktop/mobile E2E coverage, and an operations runbook.
   The worker now composes scan, parse, and OCR handlers only when every private dependency is
   configured, validates the expected OCR model/config digests, and otherwise fails closed to the
-  manual path. Extraction processing, claim/conflict/gap/citation review UI, backup/purge
-  scheduling, dashboards, and alert delivery remain incomplete; therefore Slice J is not ready.
-- **K — controlled staging:** not executed. A non-destructive Railway staging IaC plan was prepared
-  (private ClamAV plus existing web/worker/OCR updates), but the Railway skill requires explicit
-  review of the latest plan before apply. Cloudflare Wrangler is not authenticated, so the two
-  private R2 buckets, credentials, and exact-origin CORS cannot be provisioned.
+  manual path. Extraction processing and human claim/conflict/gap review UI are implemented.
+  Backup/restore scheduling, operational dashboards, and alert delivery remain incomplete;
+  therefore Slice J is not ready.
+- **K — controlled staging (partial):** applied Railway staging IaC operation
+  `oKCxkzWOvgxz83OfqZQ7w` in environment
+  `f7544a5c-065b-4eca-9eb8-577008ed6896`: 13 safe changes, zero destructive changes. The private
+  ClamAV/OCR topology and disabled AI configuration are present. Cloudflare Wrangler is not
+  authenticated, the primary/backup R2 resources are absent, and the exact reviewed revision has
+  not yet been deployed or validated.
 
 ## Local verification
 
 | Check | Result |
 | --- | --- |
 | Focused M3 worker/ingestion/security suite | Passed: 5 files, 18 tests, including private DNS restrictions, worker failure classification, full immutable promotion/replay, and manual text normalization. |
-| Full unit/integration suite | All tests passed: 42 files, 162 tests. Coverage enforcement failed separately as recorded below. |
+| Full unit/integration suite | Passed: 47 files, 214 tests. |
 | Migration suite | Passed: 5 tests, including clean replay and additive forward migrations. |
-| Full Playwright suite | Latest full run: 23/24 passed; the mobile identity onboarding journey timed out at 90 seconds waiting for the TOTP URI while all four M3 desktop/mobile tests passed. The exact failed mobile test passed alone immediately afterward in 20.0 seconds. A prior full run had the same 23/24 shape at a different identity locator. The full 24-test run is not green. |
+| Full Playwright suite | Passed: 24/24 desktop/mobile tests in 59.4 seconds, including M3 keyboard, reflow, accessible status, and quarantine-failure journeys. |
 | `pnpm test:ocr` | Passed: Python source compilation and 3 strict OCR-client boundary tests. |
 | `pnpm format:check` | Passed after final evidence and roadmap edits. |
 | `pnpm lint` | Passed after implementation and evidence edits. |
@@ -71,7 +76,7 @@ governance-only status/evidence commit does not change implementation behavior.
 | `pnpm check:docs` | Passed after this record and all links were added. |
 | `pnpm build` | Passed. |
 | `git diff --check` | Passed after final evidence and roadmap edits. |
-| `pnpm test:coverage` | Failed existing global thresholds: statements 76.09%, branches 67.75%, functions 82.94%, and lines 79.66%, with 80% required for statements/branches/lines. All 162 tests passed. Thresholds were not weakened. |
+| `pnpm test:coverage` | Passed without threshold or exclusion changes: statements 86.43%, branches 80.02%, functions 93.32%, lines 89.27%; 47 files and 214 tests passed. |
 | OCR candidate smoke/evaluation-mode checks | Passed real clean-text recognition (confidence `0.9972448945`) and a synthetic 2x2 table with exact row/cell associations. Normal mode returned `not_ready` and authenticated recognition returned HTTP 503. These are smoke checks, not the frozen promotion suite. |
 | `pnpm eval:ocr` | Still blocked: the checked-in harness is metadata-only and the complete frozen corpus has not been accepted or run twice. |
 | `pnpm eval:requirements -- --run=1` and `--run=2` | Stopped truthfully with `AI_PROMOTION_DECISION_MISSING`. |
@@ -129,33 +134,29 @@ The owner policy decisions are recorded. The remaining actions and decisions are
    `cbc9b7350a1f3baa7288c24920a758b342e701efd8f1cf25c497a90cbe294880`;
    the Anthropic evaluation configuration hash is
    `8915a32f8901a3e854da10553884ca04da9148d5d7d1bf5ec0ead2cf57dfe83e`.
-   The persistent budget/provenance worker path must be implemented before either key is enabled.
+   Keep both Railway workflow switches disabled until Codex verifies the injected secrets and runs
+   the frozen synthetic evaluations. Individual Codex/Claude subscriptions remain developer tools
+   and cannot be used by the backend.
 2. **Nishanth — OCR fixture acceptance and promotion:** review and accept the complete frozen
    synthetic English corpus/gold annotations, then review two consecutive exact-image runs. If
    every threshold passes, approve the candidate digest in a separate human promotion change.
    Codex cannot set `recognitionEnabled` or self-approve.
-3. **Nishanth — Railway IaC apply approval:** review the latest staging-only plan: 3 additions,
-   19 changes, 0 destroys. It creates the `Services` group, private `clamav` service and signature
-   volume; wires worker-to-ClamAV/OCR through Railway private DNS and an OCR service-secret
-   reference; records disabled AI budget switches; and pins both OCR digests while keeping
-   recognition/evaluation disabled. It preserves the existing auth URL and secrets and has no
-   destroys. After explicit approval Codex may apply it and separately verify/configure the
-   required 4-vCPU/8-GiB OCR ceiling, concurrency 1, no public OCR domain, and network egress policy.
+3. **Codex — Railway exact-revision validation:** the owner-approved staging IaC apply succeeded
+   with 13 safe changes and no destroys. Deploy the exact PR revision, verify 4-vCPU/8-GiB OCR
+   ceiling, concurrency 1, no public OCR/ClamAV domain, private service authentication, and network
+   egress policy, then run every-format and load checks.
 4. **Nishanth — Cloudflare authentication:** authenticate Wrangler on this machine, or provide an
    approved Cloudflare connector/session. Current `wrangler whoami` reports unauthenticated. Only
    then can Codex create `delivery-os-staging-primary` and `delivery-os-staging-backup`, `enam`
    placement, private bucket-scoped credentials, and CORS for the actual staging origin
    `https://web-staging-5e5c.up.railway.app`.
-5. **Nishanth — historical secret incident location and revocation:** verify/rotate the potentially
-   active historical credential. The GitHub repository is public and has no private/confidential
-   issue facility or the requested labels. Select a private repository/security case destination,
-   or explicitly approve a private GitHub Security Advisory as the substitute. Codex will not put
-   even sanitized incident metadata in a public issue.
-6. **Codex implementation before live validation:** add the database-backed extraction handler,
-   persistent conservative budget reservation, encrypted 30-day provenance retention, backup and
-   purge schedulers, complete claim/conflict/gap/citation review UI, and complete frozen OCR and
-   Requirement evaluation runners; then add tests until every existing 80% global coverage
-   threshold passes and the full 24-test E2E run is green. Thresholds will not be weakened.
+5. **Nishanth — historical credential revocation:** verify or rotate the potentially active
+   credential and attach sanitized closure evidence to private GitHub Security Advisory
+   [GHSA-jcvm-5j93-9h96](https://github.com/nishanthturnstile/delivery-os/security/advisories/GHSA-jcvm-5j93-9h96).
+   Revocation status remains unknown; never copy the credential value into the advisory or PR.
+6. **Codex implementation before full live validation:** add the separately credentialed
+   backup/restore scheduler and alert delivery, then complete the frozen OCR and Requirement
+   evaluation runners. Coverage and the full local E2E suite now pass without weakened gates.
 7. **Codex after the above:** run exact-revision CI/images, synthetic staging every-format and
    manual-AI-off journeys, primary/backup restore and purge drills, adversarial/security/audience
    tests, accessibility review, twenty-job load/backpressure, and scrubbed logs/metrics inspection.
@@ -166,6 +167,6 @@ Because these criteria are not satisfied, the Section 16 exit gate did not pass.
 ## Final source inventory
 
 The implementation inventory is Git commit
-`271444bc7db835487591d4e303c0681154ee73da`. It is local evidence only, not a deployed or promoted
+`fc2d41234572bbcbe519c19d94460a7df5a738e8`. It is local evidence only, not a deployed or promoted
 revision. The user's unrelated staged `apps/web/next-env.d.ts` change was excluded from M3 and
 remains outside both M3 commits.

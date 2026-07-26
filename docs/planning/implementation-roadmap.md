@@ -382,11 +382,12 @@ artifact schemas.
 
 **Blocker opened:** 2026-07-26
 
-**Clearing condition:** Pass the existing repository coverage thresholds; record and promote the
-approved OCR and AI configurations through two accepted frozen evaluations; provision the
-authorized private primary/backup storage, scanner, OCR, and isolated staging services; pass the
+**Clearing condition:** Record and promote the approved OCR and AI configurations through two
+accepted frozen evaluations; provision the authorized private primary/backup R2 storage; verify the
+already provisioned private scanner/OCR staging topology at the exact revision; pass the
 exact-revision security, audience, every-format, accessibility, restore/purge, twenty-job load, and
-operational checks; and link stable sanitized deployment evidence. See
+operational checks; verify or rotate the historical credential; and link stable sanitized
+deployment evidence. See
 [the external promotion and validation gates](decisions/w3-m3-external-promotion-and-validation-gates.md)
 and [the validation record](../validation/w3-m3-requirement-intake-template-engine.md).
 
