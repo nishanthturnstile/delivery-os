@@ -29,6 +29,11 @@ export interface ArtifactApprovalSlot {
   required: boolean;
 }
 
+export interface SubmissionGuardResult {
+  ready: boolean;
+  unmetCriteria: { code: string; message: string }[];
+}
+
 export interface ArtifactKindAdapter<TBody = unknown> {
   kind: string;
   schemaVersion: string;
@@ -39,6 +44,7 @@ export interface ArtifactKindAdapter<TBody = unknown> {
   projectAudience(body: TBody, audience: ArtifactAudience): CanonicalJsonValue;
   diff(before: TBody, after: TBody, audience: ArtifactAudience): ArtifactDiff;
   approvalPolicy: readonly ArtifactApprovalSlot[];
+  submissionGuard?(body: TBody): SubmissionGuardResult;
 }
 
 const forbiddenKeys = new Set(['__proto__', 'constructor', 'prototype']);

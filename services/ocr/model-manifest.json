@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1",
+  "engine": "PP-StructureV3",
+  "paddleOcrVersion": "3.7.0",
+  "paddlePaddleVersion": "3.3.1",
+  "language": "en",
+  "ocrVersion": "PP-OCRv5",
+  "modelDigest": "4bc98087d81049792a1847a950ebae9e95e83fc643911ae4eb05af70d6db557e",
+  "configDigest": "12dd9f9379bb158f4b2a14f101d5c69a411983852865e1d41733361fd692da79",
+  "configuration": {
+    "cpuOnly": true,
+    "concurrency": 1,
+    "dpi": 300,
+    "enableMkldnn": false,
+    "maxMegapixelsPerPage": 20,
+    "pageTimeoutSeconds": 30,
+    "useChartRecognition": false,
+    "useDocOrientationClassify": false,
+    "useDocUnwarping": false,
+    "useFormulaRecognition": false,
+    "useRegionDetection": false,
+    "useSealRecognition": false,
+    "useTableRecognition": true,
+    "useTextlineOrientation": false
+  },
+  "promotionEvidence": null,
+  "recognitionEnabled": false,
+  "reason": "The reproducible candidate includes every lazily loaded runtime artifact; two frozen runs and accountable human promotion are still required."
+}

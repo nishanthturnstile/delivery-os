@@ -15,6 +15,7 @@
     "@delivery-os/contracts": "workspace:*",
     "@delivery-os/database": "workspace:*",
     "@delivery-os/domain": "workspace:*",
+    "@delivery-os/ingestion": "workspace:*",
     "@delivery-os/observability": "workspace:*",
     "@delivery-os/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",

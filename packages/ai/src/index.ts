@@ -30,3 +30,6 @@ export class DisabledAiWorkflow<I, O> implements AiWorkflow<I, O> {
     return Promise.reject(new Error('AI assistance is disabled; use the manual workflow.'));
   }
 }
+
+export * from './requirement-extraction';
+export * from './live-requirement-provider';

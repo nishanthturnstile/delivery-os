@@ -42,6 +42,7 @@ import {
 import {
   approvalSlotsSatisfied,
   canViewArtifactAudience,
+  evaluateRequirementReadiness,
   sha256CanonicalJson,
   validateDecisionComment,
   type ArtifactApprovalSlot,
@@ -49,6 +50,7 @@ import {
   type ArtifactKindRegistry,
   type ArtifactRole,
 } from '@delivery-os/domain';
+import { requirementBodySchema, type RequirementFieldDefinition } from '@delivery-os/contracts';
 import type { PoolClient, QueryResultRow } from 'pg';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -931,6 +933,74 @@ export class PostgresArtifactStore implements ArtifactCommandStore, ArtifactQuer
       );
       const source = draft.rows[0];
       if (source === undefined) throw safeNotFound(command.correlationId);
+      let requirementReadiness:
+        | {
+            templateSnapshotId: string;
+            templateHash: string;
+            bodyHash: string;
+            readinessHash: string;
+            evidence: unknown;
+          }
+        | undefined;
+      if (artifact.kind_key === 'REQUIREMENT') {
+        const body = requirementBodySchema.parse(source.body_json);
+        const template = await client.query<{
+          template_hash: string;
+          definitions_json: RequirementFieldDefinition[];
+        }>(
+          `select template_hash, definitions_json
+             from project_requirement_template_snapshots
+            where workspace_id = $1 and project_id = $2 and id = $3`,
+          [command.workspaceId, command.projectId, body.templateSnapshotId],
+        );
+        const frozen = template.rows[0];
+        if (frozen?.template_hash !== body.templateHash) {
+          throw validation('The Requirement template snapshot is invalid.', command.correlationId);
+        }
+        const blockers = await client.query<{
+          open_conflicts: string[];
+          blocking_gaps: string[];
+        }>(
+          `select
+             coalesce((select array_agg(id order by id) from requirement_conflicts
+                        where workspace_id = $1 and project_id = $2 and artifact_id = $3
+                          and state = 'OPEN'), '{}'::uuid[])::text[] as open_conflicts,
+             coalesce((select array_agg(id order by id) from requirement_gaps
+                        where workspace_id = $1 and project_id = $2 and artifact_id = $3
+                          and state = 'OPEN' and blocking), '{}'::uuid[])::text[] as blocking_gaps`,
+          [command.workspaceId, command.projectId, command.artifactId],
+        );
+        const readiness = evaluateRequirementReadiness({
+          body,
+          template: frozen.definitions_json,
+          openConflictIds: blockers.rows[0]?.open_conflicts ?? [],
+          blockingGapIds: blockers.rows[0]?.blocking_gaps ?? [],
+        });
+        const adapterReadiness = adapter.submissionGuard?.(body);
+        const unmet = [...readiness.unmetCriteria, ...(adapterReadiness?.unmetCriteria ?? [])];
+        if (unmet.length > 0) {
+          throw new ApplicationError({
+            code: 'READINESS_FAILED',
+            message: 'Resolve the Requirement readiness blockers before review.',
+            correlationId: command.correlationId,
+            details: { unmetCriteria: unmet },
+          });
+        }
+        const evidence = {
+          schemaVersion: '1',
+          ready: true,
+          blockingFieldKeys: readiness.blockingFieldKeys,
+          blockingConflictIds: blockers.rows[0]?.open_conflicts ?? [],
+          blockingGapIds: blockers.rows[0]?.blocking_gaps ?? [],
+        };
+        requirementReadiness = {
+          templateSnapshotId: body.templateSnapshotId,
+          templateHash: body.templateHash,
+          bodyHash: source.content_hash,
+          readinessHash: sha256CanonicalJson(evidence).contentHash,
+          evidence,
+        };
+      }
       await client.query(
         `insert into artifact_review_snapshots
           (id, workspace_id, project_id, artifact_id, draft_revision_id, snapshot_number,
@@ -955,6 +1025,29 @@ export class PostgresArtifactStore implements ArtifactCommandStore, ArtifactQuer
           command.actorId,
         ],
       );
+      let approvalPolicy = adapter.approvalPolicy;
+      if (artifact.kind_key === 'REQUIREMENT') {
+        const project = await client.query<{ type: 'INTERNAL' | 'EXTERNAL' }>(
+          `select type from projects where workspace_id = $1 and id = $2`,
+          [command.workspaceId, command.projectId],
+        );
+        approvalPolicy =
+          project.rows[0]?.type === 'EXTERNAL'
+            ? [
+                ...adapter.approvalPolicy,
+                ...(adapter.approvalPolicy.some((slot) => slot.scope === 'EXTERNAL_BINDING')
+                  ? []
+                  : [
+                      {
+                        key: 'client',
+                        role: 'CLIENT_STAKEHOLDER' as const,
+                        scope: 'EXTERNAL_BINDING' as const,
+                        required: true,
+                      },
+                    ]),
+              ]
+            : adapter.approvalPolicy.filter((slot) => slot.scope !== 'EXTERNAL_BINDING');
+      }
       await client.query(
         `insert into artifact_approval_requests
           (id, workspace_id, project_id, artifact_id, snapshot_id, request_number,
@@ -967,10 +1060,32 @@ export class PostgresArtifactStore implements ArtifactCommandStore, ArtifactQuer
           command.artifactId,
           command.snapshotId,
           artifact.next_request_number,
-          JSON.stringify(adapter.approvalPolicy),
+          JSON.stringify(approvalPolicy),
           command.actorId,
         ],
       );
+      if (requirementReadiness !== undefined) {
+        await client.query(
+          `insert into requirement_readiness_snapshots
+            (id, workspace_id, project_id, artifact_id, review_snapshot_id,
+             template_snapshot_id, template_hash, body_hash, readiness_hash,
+             evidence_json, created_by)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)`,
+          [
+            uuidv7(),
+            command.workspaceId,
+            command.projectId,
+            command.artifactId,
+            command.snapshotId,
+            requirementReadiness.templateSnapshotId,
+            requirementReadiness.templateHash,
+            requirementReadiness.bodyHash,
+            requirementReadiness.readinessHash,
+            JSON.stringify(requirementReadiness.evidence),
+            command.actorId,
+          ],
+        );
+      }
       const nextRevision = artifact.revision + 1;
       await client.query(
         `update artifacts

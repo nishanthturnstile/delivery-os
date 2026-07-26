@@ -90,7 +90,7 @@ containing:
 | W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Complete`    | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
 | W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Complete`    | Projects & Clients | [Validation record](../validation/w2-m2-client-project-registry.md) |
 | W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Complete`    | Nishanth with Codex | [Validation record](../validation/w2-shared-artifact-kernel.md) |
-| W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Not Started` | Unassigned | TBD      |
+| W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `In Progress` | Nishanth with Codex | [Plan](w3-m3-requirement-intake-template-engine.md) |
 | W4   | M4 Technical, UX & Delivery Planning    | S6             | FR-M4-01–12                                             | W3                                             | `Not Started` | Unassigned | TBD      |
 | W5   | M6 Work Breakdown Engine                | S7             | FR-M6-01–16; FR-M2-10                                   | W4                                             | `Not Started` | Unassigned | TBD      |
 | W6A  | M7 Sprint & Delivery Board              | S8             | FR-M7-01–15; FR-CC-11–12                                | W5                                             | `Not Started` | Unassigned | TBD      |
@@ -376,7 +376,9 @@ artifact schemas.
 
 ## 7. W3 — M3 Requirement Intake & Template Engine
 
-**Implementation status:** `Not Started`
+**Implementation status:** `In Progress`
+
+**Owner:** Nishanth with Codex
 
 **Objective:** Turn authorized source files into a cited, human-approved Requirement baseline with
 explicit conflicts and gaps.

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./storage": "./src/storage.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
@@ -12,9 +13,18 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/s3-request-presigner": "catalog:"
+    "@aws-sdk/s3-request-presigner": "catalog:",
+    "@delivery-os/domain": "workspace:*",
+    "@napi-rs/canvas": "catalog:",
+    "file-type": "catalog:",
+    "pdfjs-dist": "catalog:",
+    "saxes": "catalog:",
+    "yauzl": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/yauzl": "catalog:",
     "typescript": "6.0.3"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-requirements-synthetic-v1",
+  "dataClassification": "SYNTHETIC",
+  "datasets": ["extraction-core", "extraction-adversarial", "gaps-core", "security-redteam"],
+  "promotionThresholds": {
+    "citationValidity": 0.98,
+    "acceptedClaimPrecision": 0.95,
+    "unsupportedClaimRateMaximum": 0.01,
+    "criticalConflictRecall": 1,
+    "overallConflictRecall": 0.9,
+    "attributionLossMaximum": 0,
+    "criticalSafetyFailuresMaximum": 0
+  }
+}

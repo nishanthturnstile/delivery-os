@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   migrateDatabase,
   migrateDatabaseThroughM2,
+  migrateDatabaseThroughS3,
   migrateDatabaseThroughW1,
   withTemporaryDatabase,
 } from '../helpers/database';
@@ -108,6 +109,36 @@ describe('checked-in PostgreSQL migrations', () => {
         snapshot: 'artifact_review_snapshots',
         baseline: 'artifact_baselines',
         immutableTrigger: 'artifact_review_snapshots_immutable',
+      });
+    });
+  });
+
+  it('upgrades the validated S3 schema additively to M3 source intake', async () => {
+    await withTemporaryDatabase(async (_databaseUrl, pool) => {
+      await migrateDatabaseThroughS3(pool);
+      const before = await pool.query<{ artifact: string | null; source: string | null }>(
+        `select to_regclass('public.artifacts')::text as artifact,
+                to_regclass('public.source_artifacts')::text as source`,
+      );
+      expect(before.rows[0]).toEqual({ artifact: 'artifacts', source: null });
+
+      await migrateDatabase(pool);
+      const after = await pool.query<{
+        source: string | null;
+        manifest: string | null;
+        immutableTrigger: string | null;
+      }>(
+        `select
+           to_regclass('public.source_artifacts')::text as source,
+           to_regclass('public.object_manifests')::text as manifest,
+           (select tgname from pg_trigger
+             where tgrelid = 'source_generations'::regclass
+               and tgname = 'source_generations_evidence_immutable') as "immutableTrigger"`,
+      );
+      expect(after.rows[0]).toEqual({
+        source: 'source_artifacts',
+        manifest: 'object_manifests',
+        immutableTrigger: 'source_generations_evidence_immutable',
       });
     });
   });

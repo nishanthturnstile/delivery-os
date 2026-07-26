@@ -5,9 +5,13 @@ import {
   checkDatabase,
   createDatabasePool,
   PostgresArtifactStore,
+  PostgresDocumentJobRepository,
+  PostgresIngestionStore,
+  PostgresOcrPageResultStore,
   PostgresOutboxRepository,
 } from '@delivery-os/database';
-import { ArtifactKindRegistry } from '@delivery-os/domain';
+import { ArtifactKindRegistry, createRequirementArtifactAdapter } from '@delivery-os/domain';
+import { ClamAvScanner, PrivateOcrClient, S3CompatibleStorage } from '@delivery-os/ingestion';
 import {
   createLogger,
   localRuntimeDefaults,
@@ -19,6 +23,8 @@ import Redis from 'ioredis';
 
 import { waitForDependencies } from './startup-retry';
 import { createArtifactExportStorage } from './artifact-export-storage';
+import { createDocumentJobHandlers } from './ingestion/document-handlers';
+import { processOneDocumentJob } from './ingestion/process-document-job';
 
 const config = parseRuntimeConfig({ ...localRuntimeDefaults, ...process.env });
 const logger = createLogger({
@@ -28,8 +34,12 @@ const logger = createLogger({
 });
 const database = createDatabasePool(config.DATABASE_URL);
 const outbox = new PostgresOutboxRepository(database);
-const artifactStore = new PostgresArtifactStore(database, new ArtifactKindRegistry());
+const artifactRegistry = new ArtifactKindRegistry();
+artifactRegistry.register(createRequirementArtifactAdapter({ externalProject: false }));
+const artifactStore = new PostgresArtifactStore(database, artifactRegistry);
+const documentJobs = new PostgresDocumentJobRepository(database);
 const artifactExportStorage = createArtifactExportStorage();
+const documentHandlers = createM3DocumentHandlers();
 
 try {
   await waitForDependencies({
@@ -119,6 +129,24 @@ const consumer = new Worker<OutboxJob>(
       );
       if (!rendered) throw new Error('ARTIFACT_EXPORT_RENDER_DEFERRED');
     }
+    if (
+      event.eventType === 'source.scan-requested.v1' &&
+      event.sourceGenerationId !== undefined &&
+      event.inputHash !== undefined
+    ) {
+      await documentJobs.enqueue({
+        id: event.eventId,
+        workspaceId: event.workspaceId,
+        projectId: event.projectId,
+        sourceArtifactId: event.sourceArtifactId,
+        sourceGenerationId: event.sourceGenerationId,
+        intakeSetId: null,
+        jobType: 'SCAN',
+        inputHash: event.inputHash,
+        configVersion: 'scan@1',
+        correlationId: event.correlationId,
+      });
+    }
     const accepted = await outbox.recordProcessed(event, 'delivery-os-outbox-v1');
     logger.info(
       {
@@ -189,6 +217,19 @@ const dispatchTimer = setInterval(() => {
   });
 }, 1_000);
 dispatchTimer.unref();
+let documentDrainActive = false;
+const documentTimer = setInterval(() => {
+  if (documentDrainActive || documentHandlers.length === 0) return;
+  documentDrainActive = true;
+  void drainDocumentJobs()
+    .catch((error: unknown) => {
+      logger.error({ err: error }, 'document job scan failed safely');
+    })
+    .finally(() => {
+      documentDrainActive = false;
+    });
+}, 500);
+documentTimer.unref();
 await dispatchPending();
 logger.info(
   {
@@ -201,11 +242,77 @@ logger.info(
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'worker stopping');
   clearInterval(dispatchTimer);
+  clearInterval(documentTimer);
   healthServer.close();
   await consumer.close();
   await queue.close();
   redis.disconnect();
   await database.end();
+}
+
+async function drainDocumentJobs(): Promise<void> {
+  for (let processed = 0; processed < 10; processed += 1) {
+    const found = await processOneDocumentJob({
+      repository: documentJobs,
+      handlers: documentHandlers,
+      workerId: `${config.APP_VERSION}:document`,
+    });
+    if (!found) return;
+  }
+}
+
+function createM3DocumentHandlers() {
+  const required = [
+    'S3_REGION',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY_ID',
+    'S3_SECRET_ACCESS_KEY',
+    'CLAMAV_HOST',
+    'OCR_INTERNAL_HOST',
+    'OCR_SERVICE_TOKEN',
+    'OCR_MODEL_DIGEST',
+    'OCR_CONFIG_DIGEST',
+  ] as const;
+  if (required.some((name) => !process.env[name]?.trim())) {
+    logger.warn({ code: 'M3_PROCESSORS_DISABLED' }, 'M3 document processors are disabled');
+    return [];
+  }
+  const value = (name: (typeof required)[number]): string => {
+    const result = process.env[name];
+    if (result === undefined || result.trim() === '')
+      throw new Error('M3_PROCESSOR_CONFIG_MISSING');
+    return result;
+  };
+  const storage = new S3CompatibleStorage({
+    ...(process.env.S3_ENDPOINT === undefined ? {} : { endpoint: process.env.S3_ENDPOINT }),
+    region: value('S3_REGION'),
+    bucket: value('S3_BUCKET'),
+    accessKeyId: value('S3_ACCESS_KEY_ID'),
+    secretAccessKey: value('S3_SECRET_ACCESS_KEY'),
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+  });
+  const ingestion = new PostgresIngestionStore(database, storage);
+  const scanner = new ClamAvScanner({
+    host: value('CLAMAV_HOST'),
+    port: 3310,
+    timeoutMs: 30_000,
+    maximumBytes: 52_428_800,
+  });
+  const ocr = new PrivateOcrClient(
+    `http://${value('OCR_INTERNAL_HOST')}`,
+    value('OCR_SERVICE_TOKEN'),
+    35_000,
+  );
+  return createDocumentJobHandlers({
+    store: ingestion,
+    jobs: documentJobs,
+    scanner,
+    ocr,
+    ocrResults: new PostgresOcrPageResultStore(database),
+    ocrModelDigest: value('OCR_MODEL_DIGEST'),
+    ocrConfigVersion: value('OCR_CONFIG_DIGEST'),
+    ocrMinimumConfidence: 0.85,
+  });
 }
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
