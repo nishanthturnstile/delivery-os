@@ -3,7 +3,7 @@
 **Reviewed:** 2026-07-26
 **Owner:** Nishanth with Codex
 **Branch base revision:** `ab05c56610a404090c42dbd6cb599ac0cd9e45ed`
-**Reviewed implementation revision:** `fc2d41234572bbcbe519c19d94460a7df5a738e8`
+**Reviewed implementation revision:** `7392f625f6cddfdcb87bc25c6987b4b43c720a4e`
 **Plan:** [W3 M3 Requirement Intake & Template Engine](../planning/w3-m3-requirement-intake-template-engine.md)
 **External gates:** [W3 M3 external promotion and validation gates](../planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 **Roadmap authority:** [Implementation roadmap](../planning/implementation-roadmap.md)
@@ -65,7 +65,7 @@ status/evidence commit does not change implementation behavior.
 | Check | Result |
 | --- | --- |
 | Focused M3 worker/ingestion/security suite | Passed: 5 files, 18 tests, including private DNS restrictions, worker failure classification, full immutable promotion/replay, and manual text normalization. |
-| Full unit/integration suite | Passed: 47 files, 214 tests. |
+| Full unit/integration suite | Passed: 47 files, 215 tests. |
 | Migration suite | Passed: 5 tests, including clean replay and additive forward migrations. |
 | Full Playwright suite | Passed: 24/24 desktop/mobile tests in 59.4 seconds, including M3 keyboard, reflow, accessible status, and quarantine-failure journeys. |
 | `pnpm test:ocr` | Passed: Python source compilation and 3 strict OCR-client boundary tests. |
@@ -76,7 +76,7 @@ status/evidence commit does not change implementation behavior.
 | `pnpm check:docs` | Passed after this record and all links were added. |
 | `pnpm build` | Passed. |
 | `git diff --check` | Passed after final evidence and roadmap edits. |
-| `pnpm test:coverage` | Passed without threshold or exclusion changes: statements 86.43%, branches 80.02%, functions 93.32%, lines 89.27%; 47 files and 214 tests passed. |
+| `pnpm test:coverage` | Passed without threshold or exclusion changes: statements 86.46%, branches 80.11%, functions 93.32%, lines 89.27%; 47 files and 215 tests passed. |
 | OCR candidate smoke/evaluation-mode checks | Passed real clean-text recognition (confidence `0.9972448945`) and a synthetic 2x2 table with exact row/cell associations. Normal mode returned `not_ready` and authenticated recognition returned HTTP 503. These are smoke checks, not the frozen promotion suite. |
 | `pnpm eval:ocr` | Still blocked: the checked-in harness is metadata-only and the complete frozen corpus has not been accepted or run twice. |
 | `pnpm eval:requirements -- --run=1` and `--run=2` | Stopped truthfully with `AI_PROMOTION_DECISION_MISSING`. |
@@ -167,6 +167,6 @@ Because these criteria are not satisfied, the Section 16 exit gate did not pass.
 ## Final source inventory
 
 The implementation inventory is Git commit
-`fc2d41234572bbcbe519c19d94460a7df5a738e8`. It is local evidence only, not a deployed or promoted
+`7392f625f6cddfdcb87bc25c6987b4b43c720a4e`. It is local evidence only, not a deployed or promoted
 revision. The user's unrelated staged `apps/web/next-env.d.ts` change was excluded from M3 and
 remains outside both M3 commits.
