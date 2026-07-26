@@ -89,7 +89,7 @@ containing:
 | W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `Complete`    | Platform   | [Completion evidence](../validation/w0-platform-foundation.md) |
 | W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Complete`    | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
 | W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Complete`    | Projects & Clients | [Validation record](../validation/w2-m2-client-project-registry.md) |
-| W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Blocked`     | Nishanth with Codex | [Approved plan and staging blocker](w2-shared-artifact-kernel.md#known-risksblockers) |
+| W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `In Validation` | Nishanth with Codex | [Validation record](../validation/w2-shared-artifact-kernel.md) |
 | W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Not Started` | Unassigned | TBD      |
 | W4   | M4 Technical, UX & Delivery Planning    | S6             | FR-M4-01–12                                             | W3                                             | `Not Started` | Unassigned | TBD      |
 | W5   | M6 Work Breakdown Engine                | S7             | FR-M6-01–16; FR-M2-10                                   | W4                                             | `Not Started` | Unassigned | TBD      |
@@ -304,7 +304,7 @@ passes in staging. Project-scoped role requirement FR-M1-07 completes with M2 in
 
 ## 6. W2 — M2 Client & Project Registry and Shared Artifact Kernel
 
-**Implementation status:** M2 `Complete`; Shared Artifact Kernel `Blocked`
+**Implementation status:** M2 `Complete`; Shared Artifact Kernel `In Validation`
 
 ### 6.1 M2 Client & Project Registry
 
@@ -345,11 +345,7 @@ implementation completed in M6.
 
 **Owner:** Nishanth with Codex
 
-**Blocker:** Opened 2026-07-26. Nishanth with Codex owns clearing it. The linked Railway project
-has no isolated staging environment, and this working tree has no reviewed source revision that can
-be backed up, migrated, and deployed without risking production. Clear the blocker by providing an
-isolated staging environment and reviewed S3 revision, then run the
-[approved staging validation and resume procedure](w2-shared-artifact-kernel.md#exact-resume-commandprompt).
+**Evidence:** [Shared Artifact Kernel validation record](../validation/w2-shared-artifact-kernel.md)
 
 **Objective:** Provide one reusable, race-safe artifact lifecycle for Requirements, Technical/UX
 plans, Feature Specifications, Cost Plans, and later change deltas.

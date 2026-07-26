@@ -1,10 +1,10 @@
 # W2 Shared Artifact Kernel — Approved Implementation Plan
 
-**Status:** Local implementation complete — staging exit gate blocked
+**Status:** Implementation complete — exit gate in validation
 
 **Authorization mode:** `IMPLEMENTATION_AUTHORIZED` on 2026-07-26
 
-**Roadmap status:** `Blocked`
+**Roadmap status:** `In Validation`
 
 **Owner:** Nishanth with Codex
 **Specification snapshot reviewed:** `14f5143`  
@@ -1111,17 +1111,17 @@ pins at implementation start and validation.
 - [x] Founder explicitly authorizes production implementation.
 - [x] A named module owner is assigned in the roadmap.
 - [x] Implementation agent rechecks that M2 is `Complete` with stable evidence.
-- [ ] Approved plan/specification commit is recorded.
+- [x] Approved plan/specification commit is recorded.
 - [x] In the same change that starts Slice A, roadmap summary and Section 6.2 both move to
       `In Progress`.
-- [ ] All mapped acceptance, security, privacy, accessibility, migration, concurrency, worker,
+- [x] All mapped acceptance, security, privacy, accessibility, migration, concurrency, worker,
       staging, and operational checks are run and recorded.
-- [ ] `docs/validation/w2-shared-artifact-kernel.md` is created with the exact reviewed/deployed
+- [x] `docs/validation/w2-shared-artifact-kernel.md` is created with the exact reviewed/deployed
       revisions and sanitized evidence.
-- [ ] Both roadmap locations link that validation record and move together to `In Validation`.
+- [x] Both roadmap locations link that validation record and move together to `In Validation`.
 - [ ] Product/engineering/security owners assess the S3 exit gate.
 - [ ] If every exit condition passes, both roadmap locations move to `Complete`.
-- [x] If any exit condition fails, both locations move to `Blocked` with owner, opened date,
+- [ ] If any exit condition fails, both locations move to `Blocked` with owner, opened date,
       clearing condition, and linked issue/decision.
 - [ ] M3/M4/M5 schema implementation remains blocked until the kernel is `Complete`.
 
@@ -1140,8 +1140,7 @@ pins at implementation start and validation.
 
 ### Constraints
 
-- Roadmap status remains `Blocked` until isolated staging and a reviewed revision allow the
-  operational exit-gate evidence to be collected.
+- The roadmap is `In Validation` while the recorded Section 15.3 evidence is assessed.
 - No M3 storage/ingestion/OCR/malware scope or module-specific body schemas.
 - No real or production data; preserve unrelated worktree changes.
 - Approved content and decision history are immutable; stale writes never overwrite.
@@ -1175,15 +1174,16 @@ pins at implementation start and validation.
 
 ### Known risks/blockers
 
-- Staging validation is blocked until an isolated staging environment and reviewed source revision
-  are available; the linked Railway project currently exposes production only.
+- No S3 exit-gate blocker remains; the validation record captures the reviewed isolated-staging
+  evidence.
 - Binary attachment availability depends on deferred M3 secure storage.
 - Real module adapters and the final client portal arrive in M3/M4/M5/M8.
 
 ### Exact resume command/prompt
 
-After a reviewed source revision and isolated staging environment are available:
+After the S3 validation record is reviewed and the roadmap is `Complete`, M3 may be planned only
+after it has an assigned owner and explicit founder implementation authorization:
 
 ```bash
-cd /srv/dev/workspaces/thaarei/delivery-os && codex "VALIDATE_SHARED_ARTIFACT_KERNEL: verify the reviewed S3 revision and isolated staging environment, backup and restore-verify staging PostgreSQL, deploy and migrate staging, run Section 16 public desktop/mobile and operational checks, create the validation record, synchronize both roadmap locations to In Validation, and stop at the Section 15.3 exit-gate decision."
+cd /srv/dev/workspaces/thaarei/delivery-os && codex "PLAN_M3_REQUIREMENT_INTAKE: verify Shared Artifact Kernel is Complete with linked evidence, read AGENTS.md and docs/README.md, prepare the decision-complete M3 Requirement Intake and Template Engine plan only, preserve unrelated changes, and do not implement until M3 has an assigned owner and explicit founder authorization."
 ```
