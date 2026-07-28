@@ -10,61 +10,25 @@
       "text": "Purchase Order Terms and Conditions",
       "kind": "HEADING",
       "critical": false,
-      "polygon": [
-        48,
-        52,
-        345,
-        52,
-        345,
-        65,
-        48,
-        65
-      ]
+      "polygon": [48, 52, 345, 52, 345, 65, 48, 65]
     },
     {
       "text": "All deliveries must be scheduled at least 48 hours in advance using the approved procurement portal",
       "kind": "PARAGRAPH",
       "critical": true,
-      "polygon": [
-        48,
-        92,
-        691,
-        92,
-        691,
-        120,
-        48,
-        120
-      ]
+      "polygon": [48, 92, 691, 92, 691, 120, 48, 120]
     },
     {
       "text": "Payment terms are net thirty days from the date of a correctly rendered invoice",
       "kind": "PARAGRAPH",
       "critical": true,
-      "polygon": [
-        48,
-        132,
-        553,
-        132,
-        553,
-        160,
-        48,
-        160
-      ]
+      "polygon": [48, 132, 553, 132, 553, 160, 48, 160]
     },
     {
       "text": "Force majeure events must be documented and submitted within five business days of the event onset",
       "kind": "PARAGRAPH",
       "critical": true,
-      "polygon": [
-        48,
-        172,
-        699,
-        172,
-        699,
-        200,
-        48,
-        200
-      ]
+      "polygon": [48, 172, 699, 172, 699, 200, 48, 200]
     }
   ]
 }

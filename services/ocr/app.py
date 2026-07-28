@@ -4,9 +4,10 @@ import binascii
 import hashlib
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
-from typing import Annotated
+from typing import Annotated, AsyncIterator
 
 import cv2
 import numpy as np
@@ -32,8 +33,20 @@ _pipeline_lock = Lock()
 _inference_lock = asyncio.Lock()
 _timed_out = False
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Model construction is a replica-startup concern, not page processing. Loading
+    # before readiness keeps the approved 30-second ceiling scoped to each page and
+    # prevents the first request from consuming that budget on pipeline setup.
+    if EVALUATION_MODE or RECOGNITION_ENABLED:
+        await asyncio.to_thread(get_pipeline)
+    yield
+
+
 app = FastAPI(
     docs_url=None,
+    lifespan=lifespan,
     openapi_url=None,
     redoc_url=None,
     title="Delivery OS private OCR boundary",

@@ -10,61 +10,25 @@
       "text": "ACME SUPPLY CO. - Shipment Confirmation",
       "kind": "HEADING",
       "critical": false,
-      "polygon": [
-        48,
-        52,
-        410,
-        52,
-        410,
-        69,
-        48,
-        69
-      ]
+      "polygon": [48, 52, 410, 52, 410, 69, 48, 69]
     },
     {
       "text": "Order PO-2026-0842",
       "kind": "HEADING",
       "critical": false,
-      "polygon": [
-        48,
-        96,
-        184,
-        96,
-        184,
-        107,
-        48,
-        107
-      ]
+      "polygon": [48, 96, 184, 96, 184, 107, 48, 107]
     },
     {
       "text": "This document confirms that the referenced purchase order has been fulfilled and the shipment is scheduled for delivery",
       "kind": "PARAGRAPH",
       "critical": true,
-      "polygon": [
-        48,
-        132,
-        817,
-        132,
-        817,
-        160,
-        48,
-        160
-      ]
+      "polygon": [48, 132, 817, 132, 817, 160, 48, 160]
     },
     {
       "text": "Order summary: 7 line items, total 186 units, gross weight approximately 42 kg",
       "kind": "PARAGRAPH",
       "critical": true,
-      "polygon": [
-        48,
-        172,
-        558,
-        172,
-        558,
-        200,
-        48,
-        200
-      ]
+      "polygon": [48, 172, 558, 172, 558, 200, 48, 200]
     }
   ]
 }

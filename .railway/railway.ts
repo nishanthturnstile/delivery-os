@@ -119,8 +119,7 @@ export default defineRailway(() => {
       S3_ACCESS_KEY_ID: preserve(),
       S3_SECRET_ACCESS_KEY: preserve(),
       S3_FORCE_PATH_STYLE: 'false',
-      BACKUP_S3_ENDPOINT:
-        'https://61bbf1f2f0c1b2e2836f25e43d247276.r2.cloudflarestorage.com',
+      BACKUP_S3_ENDPOINT: 'https://61bbf1f2f0c1b2e2836f25e43d247276.r2.cloudflarestorage.com',
       BACKUP_S3_REGION: 'auto',
       BACKUP_S3_BUCKET: 'delivery-os-staging-backup',
       BACKUP_S3_ACCESS_KEY_ID: preserve(),
