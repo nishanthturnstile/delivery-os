@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import binascii
+import ctypes
+import gc
 import hashlib
 import json
 import os
@@ -28,6 +30,7 @@ EVALUATION_MODE = os.environ.get("OCR_EVALUATION_MODE", "false") == "true"
 SERVICE_TOKEN = os.environ.get("OCR_SERVICE_TOKEN")
 PAGE_TIMEOUT_SECONDS = int(os.environ.get("OCR_PAGE_TIMEOUT_SECONDS", "30"))
 MAX_PAGE_PIXELS = 20_000_000
+_libc = ctypes.CDLL("libc.so.6")
 _pipeline: PPStructureV3 | None = None
 _pipeline_lock = Lock()
 _inference_lock = asyncio.Lock()
@@ -164,6 +167,11 @@ async def recognize(
                     detail="OCR page timeout.",
                 ) from error
             pages.append(result)
+            # Paddle releases the page graph after prediction, but glibc can retain
+            # those arenas across sequential jobs. Return freed pages to the container
+            # so retry/replay evaluation and queue backpressure remain inside the
+            # reviewed 8 GiB replica ceiling.
+            await asyncio.to_thread(trim_process_memory)
     return {
         "schemaVersion": "1",
         "modelVersion": MODEL_VERSION,
@@ -208,6 +216,11 @@ def get_pipeline() -> PPStructureV3:
                 use_table_recognition=True,
             )
     return _pipeline
+
+
+def trim_process_memory() -> None:
+    gc.collect()
+    _libc.malloc_trim(0)
 
 
 def infer_page(image: np.ndarray, page: RecognitionPage) -> dict[str, object]:
