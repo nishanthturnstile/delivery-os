@@ -10,7 +10,7 @@ const internalAllowlist = new Map([
   ['contracts', new Set()],
   ['database', new Set(['application', 'contracts', 'domain'])],
   ['domain', new Set()],
-  ['ingestion', new Set()],
+  ['ingestion', new Set(['domain'])],
   ['observability', new Set(['contracts'])],
   ['test-support', new Set(['application'])],
   ['ui', new Set()],
@@ -52,7 +52,7 @@ for (const file of await filesUnder(root)) {
     }
 
     const packageMatch = /^packages\/([^/]+)\//.exec(normalized);
-    const internalMatch = /^@delivery-os\/([^/]+)$/.exec(specifier);
+    const internalMatch = /^@delivery-os\/([^/]+)(?:\/.*)?$/.exec(specifier);
     if (packageMatch && internalMatch) {
       const owner = packageMatch[1];
       const target = internalMatch[1];

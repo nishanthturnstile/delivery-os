@@ -1,0 +1,304 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-ocr-synthetic-v1",
+  "format": "table",
+  "sha256": "88ce4ca450d4380118f344d750ef22b4e4e06260e946079c1c2006572781afa6",
+  "width": 1224,
+  "height": 1584,
+  "blocks": [
+    {
+      "text": "Invoice Line Items",
+      "kind": "HEADING",
+      "critical": false,
+      "polygon": [48, 51, 175, 51, 175, 63, 48, 63]
+    },
+    {
+      "text": "Item",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 0,
+      "cell": 0,
+      "polygon": [48, 92, 408, 92, 408, 124, 48, 124]
+    },
+    {
+      "text": "Quantity",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 0,
+      "cell": 1,
+      "polygon": [408, 92, 548, 92, 548, 124, 408, 124]
+    },
+    {
+      "text": "Unit Price",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 0,
+      "cell": 2,
+      "polygon": [548, 92, 728, 92, 728, 124, 548, 124]
+    },
+    {
+      "text": "Total",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 0,
+      "cell": 3,
+      "polygon": [728, 92, 908, 92, 908, 124, 728, 124]
+    },
+    {
+      "text": "Steel brackets (M8)",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 1,
+      "cell": 0,
+      "polygon": [48, 124, 408, 124, 408, 156, 48, 156]
+    },
+    {
+      "text": "24",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 1,
+      "cell": 1,
+      "polygon": [408, 124, 548, 124, 548, 156, 408, 156]
+    },
+    {
+      "text": "3.50",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 1,
+      "cell": 2,
+      "polygon": [548, 124, 728, 124, 728, 156, 548, 156]
+    },
+    {
+      "text": "84.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 1,
+      "cell": 3,
+      "polygon": [728, 124, 908, 124, 908, 156, 728, 156]
+    },
+    {
+      "text": "Hex bolts 10mm",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 2,
+      "cell": 0,
+      "polygon": [48, 156, 408, 156, 408, 188, 48, 188]
+    },
+    {
+      "text": "100",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 2,
+      "cell": 1,
+      "polygon": [408, 156, 548, 156, 548, 188, 408, 188]
+    },
+    {
+      "text": "0.45",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 2,
+      "cell": 2,
+      "polygon": [548, 156, 728, 156, 728, 188, 548, 188]
+    },
+    {
+      "text": "45.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 2,
+      "cell": 3,
+      "polygon": [728, 156, 908, 156, 908, 188, 728, 188]
+    },
+    {
+      "text": "Rubber gasket \u2014 A series",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 3,
+      "cell": 0,
+      "polygon": [48, 188, 408, 188, 408, 220, 48, 220]
+    },
+    {
+      "text": "12",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 3,
+      "cell": 1,
+      "polygon": [408, 188, 548, 188, 548, 220, 408, 220]
+    },
+    {
+      "text": "8.20",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 3,
+      "cell": 2,
+      "polygon": [548, 188, 728, 188, 728, 220, 548, 220]
+    },
+    {
+      "text": "98.40",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 3,
+      "cell": 3,
+      "polygon": [728, 188, 908, 188, 908, 220, 728, 220]
+    },
+    {
+      "text": "Hydraulic hose 6ft",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 4,
+      "cell": 0,
+      "polygon": [48, 220, 408, 220, 408, 252, 48, 252]
+    },
+    {
+      "text": "6",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 4,
+      "cell": 1,
+      "polygon": [408, 220, 548, 220, 548, 252, 408, 252]
+    },
+    {
+      "text": "22.50",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 4,
+      "cell": 2,
+      "polygon": [548, 220, 728, 220, 728, 252, 548, 252]
+    },
+    {
+      "text": "135.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 4,
+      "cell": 3,
+      "polygon": [728, 220, 908, 220, 908, 252, 728, 252]
+    },
+    {
+      "text": "Pressure gauge 0-100 PSI",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 5,
+      "cell": 0,
+      "polygon": [48, 252, 408, 252, 408, 284, 48, 284]
+    },
+    {
+      "text": "4",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 5,
+      "cell": 1,
+      "polygon": [408, 252, 548, 252, 548, 284, 408, 284]
+    },
+    {
+      "text": "37.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 5,
+      "cell": 2,
+      "polygon": [548, 252, 728, 252, 728, 284, 548, 284]
+    },
+    {
+      "text": "148.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 5,
+      "cell": 3,
+      "polygon": [728, 252, 908, 252, 908, 284, 728, 284]
+    },
+    {
+      "text": "Copper tubing 1/2in x 10ft",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 6,
+      "cell": 0,
+      "polygon": [48, 284, 408, 284, 408, 316, 48, 316]
+    },
+    {
+      "text": "10",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 6,
+      "cell": 1,
+      "polygon": [408, 284, 548, 284, 548, 316, 408, 316]
+    },
+    {
+      "text": "14.75",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 6,
+      "cell": 2,
+      "polygon": [548, 284, 728, 284, 728, 316, 548, 316]
+    },
+    {
+      "text": "147.50",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 6,
+      "cell": 3,
+      "polygon": [728, 284, 908, 284, 908, 316, 728, 316]
+    },
+    {
+      "text": "Brass adapter 3/4in NPT",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 7,
+      "cell": 0,
+      "polygon": [48, 316, 408, 316, 408, 348, 48, 348]
+    },
+    {
+      "text": "30",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 7,
+      "cell": 1,
+      "polygon": [408, 316, 548, 316, 548, 348, 408, 348]
+    },
+    {
+      "text": "2.10",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 7,
+      "cell": 2,
+      "polygon": [548, 316, 728, 316, 728, 348, 548, 348]
+    },
+    {
+      "text": "63.00",
+      "kind": "TABLE_CELL",
+      "critical": true,
+      "table": 0,
+      "row": 7,
+      "cell": 3,
+      "polygon": [728, 316, 908, 316, 908, 348, 728, 348]
+    }
+  ]
+}

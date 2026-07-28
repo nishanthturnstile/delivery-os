@@ -10,14 +10,19 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@delivery-os/ai": "workspace:*",
     "@delivery-os/application": "workspace:*",
     "@delivery-os/contracts": "workspace:*",
     "@delivery-os/database": "workspace:*",
+    "@delivery-os/domain": "workspace:*",
+    "@delivery-os/ingestion": "workspace:*",
     "@delivery-os/observability": "workspace:*",
+    "@aws-sdk/client-s3": "catalog:",
     "bullmq": "catalog:",
     "ioredis": "catalog:",
     "resend": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "uuid": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

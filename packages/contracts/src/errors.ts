@@ -13,6 +13,21 @@ export const errorCodeSchema = z.enum([
   'DEPENDENCY_CYCLE',
   'QUOTA_EXCEEDED',
   'JOB_NOT_CANCELLABLE',
+  'UPLOAD_SESSION_EXPIRED',
+  'UPLOAD_INCOMPLETE',
+  'CHECKSUM_MISMATCH',
+  'UNSUPPORTED_MEDIA_TYPE',
+  'ENCRYPTED_DOCUMENT',
+  'MALWARE_DETECTED',
+  'SOURCE_NOT_AVAILABLE',
+  'PARSER_FAILED',
+  'OCR_NEEDS_ATTENTION',
+  'AI_WORKFLOW_UNAVAILABLE',
+  'AI_OUTPUT_INVALID',
+  'CONFLICT_UNRESOLVED',
+  'BLOCKING_GAPS',
+  'TEMPLATE_VERSION_CONFLICT',
+  'RETENTION_STATE_CONFLICT',
   'VALIDATION_FAILED',
   'IDEMPOTENCY_KEY_REUSED',
   'DEPENDENCY_UNAVAILABLE',
@@ -30,6 +45,11 @@ export const errorEnvelopeSchema = z.object({
     details: z
       .object({
         allowedStates: z.array(z.string().min(1).max(40)).optional(),
+        artifactState: z.string().min(1).max(40).optional(),
+        requestState: z.string().min(1).max(40).optional(),
+        bindingDecision: z.enum(['APPROVED', 'REJECTED']).optional(),
+        lastUpdatedAt: z.iso.datetime().optional(),
+        reloadUrl: z.string().startsWith('/').max(2_048).optional(),
         unmetCriteria: z
           .array(
             z.object({

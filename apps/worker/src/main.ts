@@ -1,7 +1,25 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
 import { outboxJobSchema, type OutboxJob } from '@delivery-os/contracts';
-import { checkDatabase, createDatabasePool, PostgresOutboxRepository } from '@delivery-os/database';
+import {
+  approvedAnthropicRequirementEvaluationConfig,
+  approvedOpenAiRequirementConfig,
+  createApprovedRequirementProvider,
+} from '@delivery-os/ai';
+import {
+  AiProvenanceCipher,
+  checkDatabase,
+  createDatabasePool,
+  PostgresAiWorkflowStore,
+  PostgresArtifactStore,
+  PostgresDocumentJobRepository,
+  PostgresIngestionStore,
+  PostgresOcrPageResultStore,
+  PostgresOutboxRepository,
+  PostgresRequirementStore,
+} from '@delivery-os/database';
+import { ArtifactKindRegistry, createRequirementArtifactAdapter } from '@delivery-os/domain';
+import { ClamAvScanner, PrivateOcrClient, S3CompatibleStorage } from '@delivery-os/ingestion';
 import {
   createLogger,
   localRuntimeDefaults,
@@ -12,6 +30,10 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
 import { waitForDependencies } from './startup-retry';
+import { createArtifactExportStorage } from './artifact-export-storage';
+import { createRequirementExtractionHandler } from './ai/requirement-extraction-handler';
+import { createDocumentJobHandlers } from './ingestion/document-handlers';
+import { processOneDocumentJob } from './ingestion/process-document-job';
 
 const config = parseRuntimeConfig({ ...localRuntimeDefaults, ...process.env });
 const logger = createLogger({
@@ -21,6 +43,12 @@ const logger = createLogger({
 });
 const database = createDatabasePool(config.DATABASE_URL);
 const outbox = new PostgresOutboxRepository(database);
+const artifactRegistry = new ArtifactKindRegistry();
+artifactRegistry.register(createRequirementArtifactAdapter({ externalProject: false }));
+const artifactStore = new PostgresArtifactStore(database, artifactRegistry);
+const documentJobs = new PostgresDocumentJobRepository(database);
+const artifactExportStorage = createArtifactExportStorage();
+const documentHandlers = [...createM3DocumentHandlers(), ...createM3AiHandlers()];
 
 try {
   await waitForDependencies({
@@ -98,6 +126,36 @@ const consumer = new Worker<OutboxJob>(
   'outbox.dispatch',
   async (job) => {
     const event = outboxJobSchema.parse(job.data);
+    if (
+      event.eventType === 'artifact.export-requested.v1' &&
+      event.payload.exportId !== undefined
+    ) {
+      const attempts = job.opts.attempts ?? 1;
+      const rendered = await artifactStore.renderExport(
+        event.payload.exportId,
+        artifactExportStorage,
+        job.attemptsMade + 1 >= attempts,
+      );
+      if (!rendered) throw new Error('ARTIFACT_EXPORT_RENDER_DEFERRED');
+    }
+    if (
+      event.eventType === 'source.scan-requested.v1' &&
+      event.sourceGenerationId !== undefined &&
+      event.inputHash !== undefined
+    ) {
+      await documentJobs.enqueue({
+        id: event.eventId,
+        workspaceId: event.workspaceId,
+        projectId: event.projectId,
+        sourceArtifactId: event.sourceArtifactId,
+        sourceGenerationId: event.sourceGenerationId,
+        intakeSetId: null,
+        jobType: 'SCAN',
+        inputHash: event.inputHash,
+        configVersion: 'scan@1',
+        correlationId: event.correlationId,
+      });
+    }
     const accepted = await outbox.recordProcessed(event, 'delivery-os-outbox-v1');
     logger.info(
       {
@@ -168,6 +226,19 @@ const dispatchTimer = setInterval(() => {
   });
 }, 1_000);
 dispatchTimer.unref();
+let documentDrainActive = false;
+const documentTimer = setInterval(() => {
+  if (documentDrainActive || documentHandlers.length === 0) return;
+  documentDrainActive = true;
+  void drainDocumentJobs()
+    .catch((error: unknown) => {
+      logger.error({ err: error }, 'document job scan failed safely');
+    })
+    .finally(() => {
+      documentDrainActive = false;
+    });
+}, 500);
+documentTimer.unref();
 await dispatchPending();
 logger.info(
   {
@@ -180,11 +251,161 @@ logger.info(
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'worker stopping');
   clearInterval(dispatchTimer);
+  clearInterval(documentTimer);
   healthServer.close();
   await consumer.close();
   await queue.close();
   redis.disconnect();
   await database.end();
+}
+
+async function drainDocumentJobs(): Promise<void> {
+  for (let processed = 0; processed < 10; processed += 1) {
+    const found = await processOneDocumentJob({
+      repository: documentJobs,
+      handlers: documentHandlers,
+      workerId: `${config.APP_VERSION}:document`,
+    });
+    if (!found) return;
+  }
+}
+
+function createM3DocumentHandlers() {
+  const required = [
+    'S3_REGION',
+    'S3_BUCKET',
+    'S3_ACCESS_KEY_ID',
+    'S3_SECRET_ACCESS_KEY',
+    'CLAMAV_HOST',
+    'OCR_INTERNAL_HOST',
+    'OCR_SERVICE_TOKEN',
+    'OCR_MODEL_DIGEST',
+    'OCR_CONFIG_DIGEST',
+  ] as const;
+  if (required.some((name) => !process.env[name]?.trim())) {
+    logger.warn({ code: 'M3_PROCESSORS_DISABLED' }, 'M3 document processors are disabled');
+    return [];
+  }
+  const value = (name: (typeof required)[number]): string => {
+    const result = process.env[name];
+    if (result === undefined || result.trim() === '')
+      throw new Error('M3_PROCESSOR_CONFIG_MISSING');
+    return result;
+  };
+  const storage = new S3CompatibleStorage({
+    ...(process.env.S3_ENDPOINT === undefined ? {} : { endpoint: process.env.S3_ENDPOINT }),
+    region: value('S3_REGION'),
+    bucket: value('S3_BUCKET'),
+    accessKeyId: value('S3_ACCESS_KEY_ID'),
+    secretAccessKey: value('S3_SECRET_ACCESS_KEY'),
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+  });
+  const backupRequired = [
+    'BACKUP_S3_ENDPOINT',
+    'BACKUP_S3_REGION',
+    'BACKUP_S3_BUCKET',
+    'BACKUP_S3_ACCESS_KEY_ID',
+    'BACKUP_S3_SECRET_ACCESS_KEY',
+  ] as const;
+  const backupEnabled = backupRequired.every((name) => process.env[name]?.trim());
+  const backupValue = (name: (typeof backupRequired)[number]): string => {
+    const result = process.env[name];
+    if (result === undefined || result.trim() === '') {
+      throw new Error('M3_BACKUP_CONFIG_MISSING');
+    }
+    return result;
+  };
+  const backupStorage = backupEnabled
+    ? new S3CompatibleStorage({
+        endpoint: backupValue('BACKUP_S3_ENDPOINT'),
+        region: backupValue('BACKUP_S3_REGION'),
+        bucket: backupValue('BACKUP_S3_BUCKET'),
+        accessKeyId: backupValue('BACKUP_S3_ACCESS_KEY_ID'),
+        secretAccessKey: backupValue('BACKUP_S3_SECRET_ACCESS_KEY'),
+        forcePathStyle: false,
+      })
+    : undefined;
+  if (!backupEnabled) {
+    logger.warn({ code: 'M3_BACKUP_DISABLED' }, 'M3 backup and purge processors are disabled');
+  }
+  const ingestion = new PostgresIngestionStore(database, storage, backupStorage);
+  const scanner = new ClamAvScanner({
+    host: value('CLAMAV_HOST'),
+    port: 3310,
+    timeoutMs: 30_000,
+    maximumBytes: 52_428_800,
+  });
+  const ocr = new PrivateOcrClient(
+    `http://${value('OCR_INTERNAL_HOST')}`,
+    value('OCR_SERVICE_TOKEN'),
+    35_000,
+  );
+  return createDocumentJobHandlers({
+    store: ingestion,
+    jobs: documentJobs,
+    scanner,
+    ocr,
+    ocrResults: new PostgresOcrPageResultStore(database),
+    ocrModelDigest: value('OCR_MODEL_DIGEST'),
+    ocrConfigVersion: value('OCR_CONFIG_DIGEST'),
+    ocrMinimumConfidence: 0.85,
+    backupEnabled,
+  });
+}
+
+function createM3AiHandlers() {
+  if (
+    process.env.AI_GLOBAL_ENABLED !== 'true' ||
+    process.env.AI_REQUIREMENT_EXTRACTION_ENABLED !== 'true'
+  ) {
+    logger.warn({ code: 'M3_AI_DISABLED' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const provider = process.env.AI_DEFAULT_PROVIDER;
+  if (provider !== 'openai' && provider !== 'anthropic') {
+    logger.warn({ code: 'M3_AI_PROVIDER_INVALID' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const config =
+    provider === 'openai'
+      ? approvedOpenAiRequirementConfig
+      : approvedAnthropicRequirementEvaluationConfig;
+  const configuredHash =
+    provider === 'openai'
+      ? process.env.AI_OPENAI_CONFIG_HASH
+      : process.env.AI_ANTHROPIC_CONFIG_HASH;
+  const apiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY;
+  const provenanceKey = process.env.AI_PROVENANCE_KEY;
+  if (
+    configuredHash !== config.configHash ||
+    apiKey === undefined ||
+    apiKey.trim() === '' ||
+    provenanceKey === undefined ||
+    provenanceKey.trim() === ''
+  ) {
+    logger.warn({ code: 'M3_AI_CONFIG_MISSING' }, 'M3 AI assistance is disabled');
+    return [];
+  }
+  const ai = new PostgresAiWorkflowStore(database, new AiProvenanceCipher(provenanceKey));
+  return [
+    createRequirementExtractionHandler({
+      requirements: new PostgresRequirementStore(database),
+      ai,
+      config,
+      provider: (budget) =>
+        createApprovedRequirementProvider({
+          config,
+          ...(provider === 'openai' ? { openAiApiKey: apiKey } : { anthropicApiKey: apiKey }),
+          budget,
+          enabled: () =>
+            process.env.AI_GLOBAL_ENABLED === 'true' &&
+            process.env.AI_REQUIREMENT_EXTRACTION_ENABLED === 'true',
+        }),
+      environmentEnabled: () =>
+        process.env.AI_GLOBAL_ENABLED === 'true' &&
+        process.env.AI_REQUIREMENT_EXTRACTION_ENABLED === 'true',
+    }),
+  ];
 }
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

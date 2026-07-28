@@ -50,8 +50,12 @@ docs/
 - [W1 M1 Identity, Tenancy & Workspace Validation](validation/w1-m1-identity-tenancy-workspace.md)
 - [W2 M2 Client & Project Registry Execution Packet](planning/w2-m2-client-project-registry.md)
 - [W2 M2 Client & Project Registry Validation](validation/w2-m2-client-project-registry.md)
+- [W3 M3 Requirement Intake & Template Engine Plan](planning/w3-m3-requirement-intake-template-engine.md)
+- [W3 M3 Requirement Intake & Template Engine Validation](validation/w3-m3-requirement-intake-template-engine.md)
+- [W3 M3 External Promotion and Validation Gates](planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 - [AI, Security & Evaluation](assurance/ai-security-evaluation.md)
 - [Infrastructure & Deployment](deployment/infrastructure.md)
+- [M3 Requirement Intake Operations](deployment/m3-requirement-operations.md)
 
 ### Research
 

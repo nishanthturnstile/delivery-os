@@ -45,3 +45,17 @@ export async function migrateDatabaseThroughW1(pool: Pool): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Drizzle exposes selective migration only through its typed internal dialect/session pair.
   await database.dialect.migrate(migrations, database.session, {});
 }
+
+export async function migrateDatabaseThroughM2(pool: Pool): Promise<void> {
+  const database = drizzle({ client: pool });
+  const migrations = readMigrationFiles({ migrationsFolder }).slice(0, 3);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Drizzle exposes selective migration only through its typed internal dialect/session pair.
+  await database.dialect.migrate(migrations, database.session, {});
+}
+
+export async function migrateDatabaseThroughS3(pool: Pool): Promise<void> {
+  const database = drizzle({ client: pool });
+  const migrations = readMigrationFiles({ migrationsFolder }).slice(0, 4);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Drizzle exposes selective migration only through its typed internal dialect/session pair.
+  await database.dialect.migrate(migrations, database.session, {});
+}

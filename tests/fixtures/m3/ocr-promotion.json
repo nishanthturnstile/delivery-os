@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-ocr-synthetic-v1",
+  "dataClassification": "SYNTHETIC",
+  "formats": ["clean-scan", "degraded-scan", "multi-column", "table", "mixed-pdf"],
+  "promotionThresholds": {
+    "cleanCharacterErrorRateMaximum": 0.02,
+    "degradedCharacterErrorRateMaximum": 0.08,
+    "criticalRequirementRecall": 1,
+    "citationPageAccuracy": 1,
+    "citationRegionPrecisionMinimum": 0.98,
+    "tableCellAssociationF1Minimum": 0.9,
+    "crossPageAssociationMaximum": 0,
+    "idempotentBlockIdentity": true,
+    "p95PageSecondsMaximum": 30,
+    "peakMemoryGiBMaximum": 8,
+    "criticalHighFindingsMaximum": 0
+  }
+}

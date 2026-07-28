@@ -89,8 +89,8 @@ containing:
 | W0   | Platform Foundation                     | S0             | NFR-03, 06, 12–13; FR-CC-01–03, 16–17                   | None                                           | `Complete`    | Platform   | [Completion evidence](../validation/w0-platform-foundation.md) |
 | W1   | M1 Identity, Tenancy & Workspace        | S1             | FR-M1-01–06, 08–14                                      | W0                                             | `Complete`    | Identity & Access | [Validation record](../validation/w1-m1-identity-tenancy-workspace.md) |
 | W2   | M2 Client & Project Registry            | S2             | FR-M1-07; FR-M2-01–09                                   | W1                                             | `Complete`    | Projects & Clients | [Validation record](../validation/w2-m2-client-project-registry.md) |
-| W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Not Started` | Unassigned | TBD      |
-| W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Not Started` | Unassigned | TBD      |
+| W2   | Shared Artifact Kernel                  | S3             | FR-M3-12–17; FR-M4-05–07; FR-M5-08; FR-CC-07–08, 14, 16 | W2 M2                                          | `Complete`    | Nishanth with Codex | [Validation record](../validation/w2-shared-artifact-kernel.md) |
+| W3   | M3 Requirement Intake & Template Engine | S4–S5 plus S3  | FR-M3-01–18                                             | W2                                             | `Blocked` | Nishanth with Codex | [Validation](../validation/w3-m3-requirement-intake-template-engine.md) |
 | W4   | M4 Technical, UX & Delivery Planning    | S6             | FR-M4-01–12                                             | W3                                             | `Not Started` | Unassigned | TBD      |
 | W5   | M6 Work Breakdown Engine                | S7             | FR-M6-01–16; FR-M2-10                                   | W4                                             | `Not Started` | Unassigned | TBD      |
 | W6A  | M7 Sprint & Delivery Board              | S8             | FR-M7-01–15; FR-CC-11–12                                | W5                                             | `Not Started` | Unassigned | TBD      |
@@ -304,7 +304,7 @@ passes in staging. Project-scoped role requirement FR-M1-07 completes with M2 in
 
 ## 6. W2 — M2 Client & Project Registry and Shared Artifact Kernel
 
-**Implementation status:** M2 `Complete`; Shared Artifact Kernel `Not Started`
+**Implementation status:** M2 `Complete`; Shared Artifact Kernel `Complete`
 
 ### 6.1 M2 Client & Project Registry
 
@@ -343,6 +343,10 @@ implementation completed in M6.
 
 ### 6.2 Shared Artifact Kernel
 
+**Owner:** Nishanth with Codex
+
+**Evidence:** [Shared Artifact Kernel validation record](../validation/w2-shared-artifact-kernel.md)
+
 **Objective:** Provide one reusable, race-safe artifact lifecycle for Requirements, Technical/UX
 plans, Feature Specifications, Cost Plans, and later change deltas.
 
@@ -372,7 +376,31 @@ artifact schemas.
 
 ## 7. W3 — M3 Requirement Intake & Template Engine
 
-**Implementation status:** `Not Started`
+**Implementation status:** `Blocked`
+
+**Owner:** Nishanth with Codex
+
+**Blocker opened:** 2026-07-26
+
+**Clearing condition:** Apply the owner-authorized `16 GiB` ceiling selected for the existing OCR
+server-model candidate after it measured `12.564 GiB`, configure an enforceable OCR IPv4 egress deny
+and the Railway replica limit, then pass two new accepted frozen OCR evaluations. Add a separate
+backup-bucket credential to the worker and pass exact-revision backup/restore/purge, every-format,
+security, audience, accessibility, twenty-job load/backpressure, and operational checks. Verify or
+rotate the historical credential and link stable sanitized deployment evidence. OpenAI Requirement
+evaluation and primary R2 provisioning/integration are complete but do not clear the remaining
+gates. See
+[the external promotion and validation gates](decisions/w3-m3-external-promotion-and-validation-gates.md)
+and [the validation record](../validation/w3-m3-requirement-intake-template-engine.md).
+
+**Current progress (2026-07-28):** Two consecutive accepted OpenAI frozen Requirement evaluations
+passed and the advisory extraction switches are enabled in synthetic staging. Private primary and
+backup R2 buckets exist and the primary live contract passed. Earlier OCR “green” results were
+invalidated because they used hard-coded operational measurements. Truthful exact-image evaluation
+preserved accuracy and latency but Railway measured a `12.564 GiB` peak, so OCR recognition remains
+disabled and no valid pair of promotion runs exists. Nishanth delegated the model/resource choice
+on 2026-07-28; Codex selected a `16 GiB` ceiling for the existing verified candidate rather than
+changing to a new unvalidated model configuration.
 
 **Objective:** Turn authorized source files into a cited, human-approved Requirement baseline with
 explicit conflicts and gaps.

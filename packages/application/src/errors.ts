@@ -7,6 +7,11 @@ export class ApplicationError extends Error {
   readonly details:
     | {
         allowedStates?: string[];
+        artifactState?: string;
+        requestState?: string;
+        bindingDecision?: 'APPROVED' | 'REJECTED';
+        lastUpdatedAt?: string;
+        reloadUrl?: string;
         unmetCriteria?: { code: string; message: string }[];
       }
     | undefined;
@@ -18,6 +23,11 @@ export class ApplicationError extends Error {
     currentRevision?: number;
     details?: {
       allowedStates?: string[];
+      artifactState?: string;
+      requestState?: string;
+      bindingDecision?: 'APPROVED' | 'REJECTED';
+      lastUpdatedAt?: string;
+      reloadUrl?: string;
       unmetCriteria?: { code: string; message: string }[];
     };
     cause?: unknown;

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-ocr-synthetic-v1",
+  "format": "degraded-scan",
+  "sha256": "8800bc8394e9d173c3054cf5068117782f5d8a6f257794fc8eed4b6e19ae44b0",
+  "width": 1224,
+  "height": 1584,
+  "blocks": [
+    {
+      "text": "Invoice Processing Guidelines",
+      "kind": "HEADING",
+      "critical": false,
+      "polygon": [48, 52, 277, 52, 277, 69, 48, 69]
+    },
+    {
+      "text": "All invoices must be submitted in PDF format through the accounts payable portal",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [48, 92, 577, 92, 577, 120, 48, 120]
+    },
+    {
+      "text": "Approved invoices are processed on the next scheduled payment run following the twenty-fifth day of each month",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [48, 132, 781, 132, 781, 160, 48, 160]
+    },
+    {
+      "text": "Disputed amounts must be flagged within five business days of invoice receipt",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [48, 172, 552, 172, 552, 200, 48, 200]
+    }
+  ]
+}
