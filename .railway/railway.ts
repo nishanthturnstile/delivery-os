@@ -58,8 +58,8 @@ export default defineRailway(() => {
     healthcheckTimeout: 120,
     env: {
       APP_ENV: 'staging',
-      AI_GLOBAL_ENABLED: 'false',
-      AI_REQUIREMENT_EXTRACTION_ENABLED: 'false',
+      AI_GLOBAL_ENABLED: 'true',
+      AI_REQUIREMENT_EXTRACTION_ENABLED: 'true',
       AI_DEFAULT_PROVIDER: 'openai',
       AI_OPENAI_CONFIG_HASH: 'cbc9b7350a1f3baa7288c24920a758b342e701efd8f1cf25c497a90cbe294880',
       AI_ANTHROPIC_CONFIG_HASH: '8915a32f8901a3e854da10553884ca04da9148d5d7d1bf5ec0ead2cf57dfe83e',
@@ -95,8 +95,8 @@ export default defineRailway(() => {
     healthcheckTimeout: 120,
     env: {
       APP_ENV: 'staging',
-      AI_GLOBAL_ENABLED: 'false',
-      AI_REQUIREMENT_EXTRACTION_ENABLED: 'false',
+      AI_GLOBAL_ENABLED: 'true',
+      AI_REQUIREMENT_EXTRACTION_ENABLED: 'true',
       AI_MONTHLY_BUDGET_USD: '100',
       AI_PER_RUN_BUDGET_USD: '1',
       AI_BUDGET_ALERTS_USD: '50,80',
