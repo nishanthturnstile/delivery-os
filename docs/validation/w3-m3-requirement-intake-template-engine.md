@@ -178,14 +178,12 @@ behavior, not OCR acceptance evidence.
 
 The owner policy decisions are recorded. The exact remaining actions and decisions are:
 
-1. **Nishanth — OCR resource/model decision:** current PP-StructureV3 server-model evaluation
-   reached `12.564 GiB`, breaching the approved `8 GiB` ceiling. Choose one:
-   - approve a `16 GiB` Railway OCR replica ceiling for the existing model configuration, then
-     Codex will set the actual Railway limit and run two new consecutive frozen evaluations; or
-   - keep `8 GiB` and approve a new lighter English PP-StructureV3 configuration (for example,
-     mobile detection/English recognition). That path requires a new baked artifact digest, image
-     digest, configuration hash, SBOM scan, and two fresh accepted evaluations.
-   Recognition remains `false`; no existing OCR run is promotion evidence.
+1. **OCR resource/model decision — resolved:** Nishanth delegated the choice on 2026-07-28. Codex
+   selected a `16 GiB` ceiling for the existing verified PP-StructureV3 server-model candidate,
+   providing headroom above the observed `12.564 GiB` peak without replacing it with an unvalidated
+   model configuration. Railway still reports a `24 GiB` plan ceiling and does not expose the
+   required per-service limit through the available CLI/IaC controls. Recognition remains `false`;
+   no existing OCR run is promotion evidence.
 2. **Nishanth — separate backup-bucket credential:** in Cloudflare, create an R2 S3 API token
    restricted to Object Read/Write for `delivery-os-staging-backup`. Add its Access Key ID and
    Secret Access Key directly to the Railway **worker** variables
@@ -194,9 +192,10 @@ The owner policy decisions are recorded. The exact remaining actions and decisio
    backup/restore/purge drills.
 3. **Nishanth/Railway — enforceable OCR network and replica controls:** Railway currently reports no
    public OCR domain, one replica, IPv6 egress disabled, a 24 GiB plan ceiling, and no exposed
-   control that denies dynamic IPv4 Internet egress. Set the OCR replica limit to the value chosen
-   in action 1 and provide an enforceable IPv4 egress-deny mechanism or approve moving the private
-   OCR boundary to an environment that supplies it. “No static IP” is not evidence of no egress.
+   control that denies dynamic IPv4 Internet egress. Railway's documented IPv6 toggle explicitly
+   leaves IPv4 connectivity available. Set the OCR replica limit to `16 GiB` and provide an
+   enforceable IPv4 egress-deny mechanism or approve moving the private OCR boundary to an
+   environment that supplies it. “No static IP” is not evidence of no egress.
 4. **Nishanth — historical credential revocation:** verify or rotate the potentially active
    historical credential and attach sanitized closure evidence to private GitHub Security Advisory
    [GHSA-jcvm-5j93-9h96](https://github.com/nishanthturnstile/delivery-os/security/advisories/GHSA-jcvm-5j93-9h96).

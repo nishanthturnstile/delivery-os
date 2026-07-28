@@ -382,9 +382,9 @@ artifact schemas.
 
 **Blocker opened:** 2026-07-26
 
-**Clearing condition:** Resolve the OCR resource/model decision after the current candidate measured
-`12.564 GiB` against the approved `8 GiB` ceiling, configure an enforceable OCR IPv4 egress deny and
-the chosen Railway replica limit, then pass two new accepted frozen OCR evaluations. Add a separate
+**Clearing condition:** Apply the owner-authorized `16 GiB` ceiling selected for the existing OCR
+server-model candidate after it measured `12.564 GiB`, configure an enforceable OCR IPv4 egress deny
+and the Railway replica limit, then pass two new accepted frozen OCR evaluations. Add a separate
 backup-bucket credential to the worker and pass exact-revision backup/restore/purge, every-format,
 security, audience, accessibility, twenty-job load/backpressure, and operational checks. Verify or
 rotate the historical credential and link stable sanitized deployment evidence. OpenAI Requirement
@@ -398,7 +398,9 @@ passed and the advisory extraction switches are enabled in synthetic staging. Pr
 backup R2 buckets exist and the primary live contract passed. Earlier OCR “green” results were
 invalidated because they used hard-coded operational measurements. Truthful exact-image evaluation
 preserved accuracy and latency but Railway measured a `12.564 GiB` peak, so OCR recognition remains
-disabled and no valid pair of promotion runs exists.
+disabled and no valid pair of promotion runs exists. Nishanth delegated the model/resource choice
+on 2026-07-28; Codex selected a `16 GiB` ceiling for the existing verified candidate rather than
+changing to a new unvalidated model configuration.
 
 **Objective:** Turn authorized source files into a cited, human-approved Requirement baseline with
 explicit conflicts and gaps.
