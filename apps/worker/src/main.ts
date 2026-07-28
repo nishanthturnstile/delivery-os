@@ -300,7 +300,35 @@ function createM3DocumentHandlers() {
     secretAccessKey: value('S3_SECRET_ACCESS_KEY'),
     forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
   });
-  const ingestion = new PostgresIngestionStore(database, storage);
+  const backupRequired = [
+    'BACKUP_S3_ENDPOINT',
+    'BACKUP_S3_REGION',
+    'BACKUP_S3_BUCKET',
+    'BACKUP_S3_ACCESS_KEY_ID',
+    'BACKUP_S3_SECRET_ACCESS_KEY',
+  ] as const;
+  const backupEnabled = backupRequired.every((name) => process.env[name]?.trim());
+  const backupValue = (name: (typeof backupRequired)[number]): string => {
+    const result = process.env[name];
+    if (result === undefined || result.trim() === '') {
+      throw new Error('M3_BACKUP_CONFIG_MISSING');
+    }
+    return result;
+  };
+  const backupStorage = backupEnabled
+    ? new S3CompatibleStorage({
+        endpoint: backupValue('BACKUP_S3_ENDPOINT'),
+        region: backupValue('BACKUP_S3_REGION'),
+        bucket: backupValue('BACKUP_S3_BUCKET'),
+        accessKeyId: backupValue('BACKUP_S3_ACCESS_KEY_ID'),
+        secretAccessKey: backupValue('BACKUP_S3_SECRET_ACCESS_KEY'),
+        forcePathStyle: false,
+      })
+    : undefined;
+  if (!backupEnabled) {
+    logger.warn({ code: 'M3_BACKUP_DISABLED' }, 'M3 backup and purge processors are disabled');
+  }
+  const ingestion = new PostgresIngestionStore(database, storage, backupStorage);
   const scanner = new ClamAvScanner({
     host: value('CLAMAV_HOST'),
     port: 3310,
@@ -321,6 +349,7 @@ function createM3DocumentHandlers() {
     ocrModelDigest: value('OCR_MODEL_DIGEST'),
     ocrConfigVersion: value('OCR_CONFIG_DIGEST'),
     ocrMinimumConfidence: 0.85,
+    backupEnabled,
   });
 }
 

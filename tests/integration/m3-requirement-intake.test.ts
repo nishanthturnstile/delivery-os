@@ -78,6 +78,7 @@ async function setup(pool: DatabasePool) {
     );
   }
   const storage = new FakeObjectStorage();
+  const backupStorage = new FakeObjectStorage();
   return {
     workspaceId,
     projectId,
@@ -85,7 +86,8 @@ async function setup(pool: DatabasePool) {
     stakeholderId,
     outsiderId,
     storage,
-    store: new PostgresIngestionStore(pool, storage),
+    backupStorage,
+    store: new PostgresIngestionStore(pool, storage, backupStorage),
   };
 }
 
@@ -316,6 +318,83 @@ describe('M3 secure source upload repository', () => {
     });
   });
 
+  it('copies a verified immutable primary object to the separate backup store exactly once', async () => {
+    await withTemporaryDatabase(async (_url, pool) => {
+      await migrateDatabase(pool);
+      const context = await setup(pool);
+      const body = new TextEncoder().encode('Synthetic backup source.');
+      const command = createCommand({
+        ...context,
+        actorId: context.pmId,
+        body,
+      });
+      await context.store.createUploadSession(command);
+      context.storage.seed({
+        key: objectKey(command),
+        contentLength: body.byteLength,
+        contentType: 'text/plain',
+        checksumSha256: command.command.checksumSha256Base64,
+        body,
+      });
+      await context.store.completeUploadSession(
+        completeSourceUploadSessionCommandSchema.parse({
+          schemaVersion: '1',
+          workspaceId: context.workspaceId,
+          projectId: context.projectId,
+          actorId: context.pmId,
+          expectedRevision: 1,
+          idempotencyKey: uuidv7(),
+          correlationId: uuidv7(),
+          sourceArtifactId: command.sourceArtifactId,
+          sourceGenerationId: command.sourceGenerationId,
+          uploadSessionId: command.uploadSessionId,
+          command: {},
+        }),
+      );
+      const claim = {
+        id: uuidv7(),
+        attemptId: uuidv7(),
+        attemptNumber: 1,
+        workspaceId: context.workspaceId,
+        projectId: context.projectId,
+        sourceArtifactId: command.sourceArtifactId,
+        sourceGenerationId: command.sourceGenerationId,
+        intakeSetId: null,
+        jobType: 'BACKUP' as const,
+        inputHash: command.command.checksumSha256,
+        configVersion: 'r2-backup@1',
+        correlationId: uuidv7(),
+      };
+      const primaryObjectKey = `sources/${context.workspaceId}/${context.projectId}/${command.sourceArtifactId}/${command.sourceGenerationId}`;
+      await context.store.promoteScannedSource(claim, {
+        primaryManifestId: uuidv7(),
+        primaryObjectKey,
+        detectedMediaType: 'text/plain',
+      });
+      const backupObjectKey = `backups/${context.workspaceId}/${context.projectId}/${command.sourceArtifactId}/${command.sourceGenerationId}`;
+      const first = await context.store.backupSource(claim, {
+        backupManifestId: uuidv7(),
+        backupObjectKey,
+      });
+      const replay = await context.store.backupSource(claim, {
+        backupManifestId: uuidv7(),
+        backupObjectKey,
+      });
+      expect(first.replayed).toBe(false);
+      expect(replay.replayed).toBe(true);
+      await expect(context.backupStorage.head(backupObjectKey)).resolves.toMatchObject({
+        contentLength: body.byteLength,
+        contentType: 'text/plain',
+      });
+      const manifests = await pool.query<{ state: string; purpose: string }>(
+        `select state, purpose from object_manifests
+          where source_generation_id = $1 and purpose = 'BACKUP'`,
+        [command.sourceGenerationId],
+      );
+      expect(manifests.rows).toEqual([{ state: 'AVAILABLE', purpose: 'BACKUP' }]);
+    });
+  });
+
   it('authorizes downloads and purges primary plus backup manifests after recovery expires', async () => {
     await withTemporaryDatabase(async (_url, pool) => {
       await migrateDatabase(pool);
@@ -356,7 +435,8 @@ describe('M3 secure source upload repository', () => {
         [primaryKey, 'PRIMARY'],
         [backupKey, 'BACKUP'],
       ] as const) {
-        context.storage.seed({
+        const targetStorage = purpose === 'BACKUP' ? context.backupStorage : context.storage;
+        targetStorage.seed({
           key,
           contentLength: body.byteLength,
           contentType: 'text/plain',
@@ -464,7 +544,7 @@ describe('M3 secure source upload repository', () => {
         manifestCount: 3,
       });
       await expect(context.storage.head(primaryKey)).resolves.toBeUndefined();
-      await expect(context.storage.head(backupKey)).resolves.toBeUndefined();
+      await expect(context.backupStorage.head(backupKey)).resolves.toBeUndefined();
       const evidence = await pool.query<{
         source_count: string;
         receipt_count: string;

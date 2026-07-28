@@ -38,6 +38,7 @@ export type DocumentHandlerDependencies = Readonly<{
   ocrModelDigest: string;
   ocrConfigVersion: string;
   ocrMinimumConfidence: number;
+  backupEnabled: boolean;
 }>;
 
 export function createDocumentJobHandlers(
@@ -56,6 +57,18 @@ export function createDocumentJobHandlers(
       jobType: 'OCR',
       run: (claim) => recognize(dependencies, claim),
     },
+    ...(dependencies.backupEnabled
+      ? ([
+          {
+            jobType: 'BACKUP',
+            run: (claim) => backup(dependencies, claim),
+          },
+          {
+            jobType: 'PURGE',
+            run: (claim) => purge(dependencies, claim),
+          },
+        ] satisfies readonly DocumentJobHandler[])
+      : []),
   ];
 }
 
@@ -100,9 +113,55 @@ async function scan(
     sourceArtifactId: claim.sourceArtifactId,
     sourceGenerationId: claim.sourceGenerationId,
     intakeSetId: claim.intakeSetId,
+    jobType: 'BACKUP',
+    inputHash: claim.inputHash,
+    configVersion: 'r2-backup@1',
+    correlationId: claim.correlationId,
+    maximumAttempts: 5,
+  });
+  await dependencies.jobs.enqueue({
+    id: uuidv7(),
+    workspaceId: claim.workspaceId,
+    projectId: claim.projectId,
+    sourceArtifactId: claim.sourceArtifactId,
+    sourceGenerationId: claim.sourceGenerationId,
+    intakeSetId: claim.intakeSetId,
     jobType: 'PARSE',
     inputHash: claim.inputHash,
     configVersion: PARSER_VERSION,
+    correlationId: claim.correlationId,
+  });
+}
+
+async function backup(
+  dependencies: DocumentHandlerDependencies,
+  claim: DocumentJobClaim,
+): Promise<void> {
+  if (claim.sourceArtifactId === null || claim.sourceGenerationId === null) {
+    throw new Error('DOCUMENT_JOB_SOURCE_MISSING');
+  }
+  await dependencies.store.backupSource(claim, {
+    backupManifestId: uuidv7(),
+    backupObjectKey: [
+      'backups',
+      claim.workspaceId,
+      claim.projectId,
+      claim.sourceArtifactId,
+      claim.sourceGenerationId,
+    ].join('/'),
+  });
+}
+
+async function purge(
+  dependencies: DocumentHandlerDependencies,
+  claim: DocumentJobClaim,
+): Promise<void> {
+  if (claim.sourceArtifactId === null) throw new Error('DOCUMENT_JOB_SOURCE_MISSING');
+  await dependencies.store.purgeSource({
+    workspaceId: claim.workspaceId,
+    projectId: claim.projectId,
+    sourceArtifactId: claim.sourceArtifactId,
+    purgeReceiptId: uuidv7(),
     correlationId: claim.correlationId,
   });
 }

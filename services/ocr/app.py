@@ -25,7 +25,7 @@ MODEL_DIGEST = os.environ.get("OCR_MODEL_DIGEST", BAKED_MODEL_DIGEST)
 RECOGNITION_ENABLED = os.environ.get("OCR_RECOGNITION_ENABLED", "false") == "true"
 EVALUATION_MODE = os.environ.get("OCR_EVALUATION_MODE", "false") == "true"
 SERVICE_TOKEN = os.environ.get("OCR_SERVICE_TOKEN")
-PAGE_TIMEOUT_SECONDS = 30
+PAGE_TIMEOUT_SECONDS = int(os.environ.get("OCR_PAGE_TIMEOUT_SECONDS", "30"))
 MAX_PAGE_PIXELS = 20_000_000
 _pipeline: PPStructureV3 | None = None
 _pipeline_lock = Lock()
@@ -217,6 +217,16 @@ def infer_page(image: np.ndarray, page: RecognitionPage) -> dict[str, object]:
     ocr = payload.get("overall_ocr_res", {})
     candidates: list[dict[str, object]] = []
     table_bounds: list[list[float]] = []
+
+    def try_candidate(text, confidence, polygon, kind, **table_coordinates):
+        normalized = str(text).strip()
+        if not normalized:
+            return None
+        try:
+            return candidate(text, confidence, polygon, kind, **table_coordinates)
+        except RuntimeError:
+            return None
+
     for table_index, table in enumerate(payload.get("table_res_list", [])):
         cell_boxes = table.get("cell_box_list", [])
         table_ocr = table.get("table_ocr_pred", {})
@@ -228,17 +238,12 @@ def infer_page(image: np.ndarray, page: RecognitionPage) -> dict[str, object]:
             row_index = rows[cell_index] if cell_index is not None else 0
             cells_in_row = [index for index, value in enumerate(rows) if value == row_index]
             column_index = cells_in_row.index(cell_index) if cell_index in cells_in_row else 0
-            candidates.append(
-                candidate(
-                    text,
-                    confidence,
-                    polygon,
-                    "TABLE_CELL",
-                    table=table_index,
-                    row=row_index,
-                    cell=column_index,
-                )
+            c = try_candidate(
+                text, confidence, polygon, "TABLE_CELL",
+                table=table_index, row=row_index, cell=column_index,
             )
+            if c is not None:
+                candidates.append(c)
         if cell_boxes:
             table_bounds.append(
                 [
@@ -261,7 +266,9 @@ def infer_page(image: np.ndarray, page: RecognitionPage) -> dict[str, object]:
             ),
             "text",
         )
-        candidates.append(candidate(text, confidence, polygon, kind_for_label(label)))
+        c = try_candidate(text, confidence, polygon, kind_for_label(label))
+        if c is not None:
+            candidates.append(c)
     candidates.sort(key=lambda item: (item["_top"], item["_left"], item["text"]))
     blocks: list[dict[str, object]] = []
     for order, item in enumerate(candidates):

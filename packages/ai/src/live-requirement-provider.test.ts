@@ -31,6 +31,7 @@ function input() {
     intakeSetId: 'intake-1',
     templateHash: 'a'.repeat(64),
     workflowConfigHash: config.configHash,
+    fields: [{ key: 'budget_band', label: 'Budget band', valueType: 'short_text' as const }],
     blocks: [
       {
         id: 'block-1',

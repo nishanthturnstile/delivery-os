@@ -556,6 +556,11 @@ export class PostgresRequirementStore
     artifactId: string;
     actorId: string;
     templateHash: string;
+    fields: {
+      key: string;
+      label: string;
+      valueType: 'short_text' | 'long_text' | 'string_list' | 'structured_list' | 'date' | 'enum';
+    }[];
     blocks: {
       id: string;
       sourceGenerationId: string;
@@ -568,9 +573,11 @@ export class PostgresRequirementStore
       artifact_id: string;
       created_by: string;
       template_hash: string;
+      template_snapshot_id: string;
     }>(
       `select intake.artifact_id, intake.created_by,
-              draft.body_json ->> 'templateHash' as template_hash
+              draft.body_json ->> 'templateHash' as template_hash,
+              draft.body_json ->> 'templateSnapshotId' as template_snapshot_id
          from requirement_intake_sets intake
          join artifacts artifact
            on artifact.workspace_id = intake.workspace_id
@@ -583,7 +590,25 @@ export class PostgresRequirementStore
       [workspaceId, projectId, intakeSetId],
     );
     const row = context.rows[0];
-    if (row === undefined || !/^[a-f0-9]{64}$/.test(row.template_hash)) throw notFound();
+    if (
+      row === undefined ||
+      !/^[a-f0-9]{64}$/.test(row.template_hash) ||
+      typeof row.template_snapshot_id !== 'string'
+    ) {
+      throw notFound();
+    }
+    const template = await this.pool.query<{
+      definitions_json: RequirementFieldDefinition[];
+    }>(
+      `select definitions_json
+         from project_requirement_template_snapshots
+        where workspace_id = $1 and project_id = $2 and id = $3 and template_hash = $4`,
+      [workspaceId, projectId, row.template_snapshot_id, row.template_hash],
+    );
+    const definitions = template.rows[0]?.definitions_json;
+    if (definitions === undefined || definitions.length === 0 || definitions.length > 200) {
+      throw notFound();
+    }
     const blocks = await this.pool.query<{
       id: string;
       source_generation_id: string;
@@ -609,6 +634,11 @@ export class PostgresRequirementStore
       artifactId: row.artifact_id,
       actorId: row.created_by,
       templateHash: row.template_hash,
+      fields: definitions.map((field) => ({
+        key: field.key,
+        label: field.label,
+        valueType: field.valueType,
+      })),
       blocks: blocks.rows.map((block) => ({
         id: block.id,
         sourceGenerationId: block.source_generation_id,

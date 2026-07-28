@@ -72,6 +72,8 @@ function dependencies(): {
     loadProcessingSource: load,
     readProcessingObject: read,
     promoteScannedSource: promote,
+    backupSource: vi.fn().mockResolvedValue({ replayed: false }),
+    purgeSource: vi.fn().mockResolvedValue({ purged: true, manifestCount: 0 }),
     commitNormalizedDocument: commit,
   };
   const jobs: DocumentJobRepository = {
@@ -103,6 +105,7 @@ function dependencies(): {
       ocrModelDigest: 'b'.repeat(64),
       ocrConfigVersion: 'a'.repeat(64),
       ocrMinimumConfidence: 0.85,
+      backupEnabled: false,
     },
     enqueue,
     promote,

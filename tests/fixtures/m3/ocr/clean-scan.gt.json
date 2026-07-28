@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-ocr-synthetic-v1",
+  "format": "clean-scan",
+  "sha256": "e181d9dc3effe7417083605ddae245f6cad6862a66816cffec2afe66b08486be",
+  "width": 1224,
+  "height": 1584,
+  "blocks": [
+    {
+      "text": "Purchase Order Terms and Conditions",
+      "kind": "HEADING",
+      "critical": false,
+      "polygon": [
+        48,
+        52,
+        345,
+        52,
+        345,
+        65,
+        48,
+        65
+      ]
+    },
+    {
+      "text": "All deliveries must be scheduled at least 48 hours in advance using the approved procurement portal",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        92,
+        691,
+        92,
+        691,
+        120,
+        48,
+        120
+      ]
+    },
+    {
+      "text": "Payment terms are net thirty days from the date of a correctly rendered invoice",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        132,
+        553,
+        132,
+        553,
+        160,
+        48,
+        160
+      ]
+    },
+    {
+      "text": "Force majeure events must be documented and submitted within five business days of the event onset",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        172,
+        699,
+        172,
+        699,
+        200,
+        48,
+        200
+      ]
+    }
+  ]
+}

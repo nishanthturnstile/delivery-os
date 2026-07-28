@@ -52,6 +52,7 @@ export function createRequirementExtractionHandler(input: {
         intakeSetId: claim.intakeSetId,
         templateHash: context.templateHash,
         workflowConfigHash: input.config.configHash,
+        fields: context.fields,
         blocks: context.blocks.map((block) => ({
           id: block.id,
           sourceGenerationId: block.sourceGenerationId,

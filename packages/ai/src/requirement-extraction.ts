@@ -11,6 +11,25 @@ export const extractionInputSchema = z
     intakeSetId: id,
     templateHash: sha256,
     workflowConfigHash: sha256,
+    fields: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^[a-z][a-z0-9_]{1,79}$/),
+            label: z.string().min(1).max(160),
+            valueType: z.enum([
+              'short_text',
+              'long_text',
+              'string_list',
+              'structured_list',
+              'date',
+              'enum',
+            ]),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(200),
     blocks: z
       .array(
         z
@@ -37,7 +56,6 @@ export const extractionOutputSchema = z
             proposedValue: z.union([
               z.string().max(20_000),
               z.array(z.string().max(2_000)).max(500),
-              z.array(z.record(z.string().max(80), z.string().max(2_000))).max(500),
             ]),
             blockIds: z.array(id).min(1).max(50),
           })
@@ -67,7 +85,9 @@ export function validateExtraction(
   const input = extractionInputSchema.parse(inputValue);
   const output = extractionOutputSchema.parse(outputValue);
   const blocks = new Map(input.blocks.map((block) => [block.id, block]));
+  const fieldKeys = new Set(input.fields.map((field) => field.key));
   for (const claim of output.claims) {
+    if (!fieldKeys.has(claim.fieldKey)) throw new Error('AI_FIELD_KEY_INVALID');
     const evidence = claim.blockIds.map((blockId) => blocks.get(blockId));
     if (evidence.some((block) => block === undefined)) throw new Error('AI_CITATION_INVALID');
     const audiences = evidence.flatMap((block) => (block === undefined ? [] : [block.audience]));
@@ -75,6 +95,9 @@ export function validateExtraction(
       // Mixed-audience claims are legal internally but must remain Team-only downstream.
       continue;
     }
+  }
+  for (const question of output.questions) {
+    if (!fieldKeys.has(question.fieldKey)) throw new Error('AI_FIELD_KEY_INVALID');
   }
   return {
     ...output,

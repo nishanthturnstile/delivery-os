@@ -162,6 +162,7 @@ export class PostgresIngestionStore
   constructor(
     private readonly pool: DatabasePool,
     private readonly storage: SourceUploadStorageGateway,
+    private readonly backupStorage?: SourceUploadStorageGateway,
   ) {}
 
   async createUploadSession(
@@ -552,6 +553,26 @@ export class PostgresIngestionStore
         );
         retentionState = 'RECOVERABLE';
         recoverableUntil = due.toISOString();
+        const purgeInputHash = createHash('sha256')
+          .update(`${source.id}:${due.toISOString()}`)
+          .digest('hex');
+        await client.query(
+          `insert into document_jobs
+            (id, workspace_id, project_id, source_artifact_id, source_generation_id,
+             job_type, input_hash, config_version, correlation_id, available_at)
+           values ($1, $2, $3, $4, $5, 'PURGE', $6, 'retention-purge@1', $7, $8)
+           on conflict (workspace_id, project_id, job_type, input_hash, config_version) do nothing`,
+          [
+            uuidv7(),
+            command.workspaceId,
+            command.projectId,
+            command.sourceArtifactId,
+            source.current_generation_id,
+            purgeInputHash,
+            command.correlationId,
+            due,
+          ],
+        );
       } else {
         if (
           source.retention_state !== 'RECOVERABLE' ||
@@ -569,6 +590,14 @@ export class PostgresIngestionStore
               set retention_state = 'ACTIVE', deleted_by = null, deleted_at = null,
                   recoverable_until = null, revision = revision + 1, updated_at = now()
             where workspace_id = $1 and project_id = $2 and id = $3`,
+          [command.workspaceId, command.projectId, command.sourceArtifactId],
+        );
+        await client.query(
+          `update document_jobs
+              set state = 'CANCELLED', completed_at = now(), revision = revision + 1,
+                  updated_at = now()
+            where workspace_id = $1 and project_id = $2 and source_artifact_id = $3
+              and job_type = 'PURGE' and state in ('QUEUED', 'RETRY_WAIT')`,
           [command.workspaceId, command.projectId, command.sourceArtifactId],
         );
         retentionState = 'ACTIVE';
@@ -681,10 +710,24 @@ export class PostgresIngestionStore
         order by purpose, replica, id`,
       [input.workspaceId, input.projectId, input.sourceArtifactId],
     );
-    const keys = manifests.rows.map((manifest) => manifest.object_key);
-    await this.storage.deleteMany(keys);
-    for (const key of keys) {
-      if ((await this.storage.head(key)) !== undefined) {
+    const primaryKeys = manifests.rows
+      .filter((manifest) => manifest.purpose !== 'BACKUP')
+      .map((manifest) => manifest.object_key);
+    const backupKeys = manifests.rows
+      .filter((manifest) => manifest.purpose === 'BACKUP')
+      .map((manifest) => manifest.object_key);
+    if (backupKeys.length > 0 && this.backupStorage === undefined) {
+      throw new Error('BACKUP_STORAGE_MISSING');
+    }
+    await this.storage.deleteMany(primaryKeys);
+    const backupStorage = this.backupStorage;
+    if (backupKeys.length > 0 && backupStorage !== undefined) {
+      await backupStorage.deleteMany(backupKeys);
+    }
+    for (const manifest of manifests.rows) {
+      const target = manifest.purpose === 'BACKUP' ? backupStorage : this.storage;
+      if (target === undefined) throw new Error('BACKUP_STORAGE_MISSING');
+      if ((await target.head(manifest.object_key)) !== undefined) {
         throw new ApplicationError({
           code: 'DEPENDENCY_UNAVAILABLE',
           message: 'Permanent purge could not verify object removal.',
@@ -772,6 +815,71 @@ export class PostgresIngestionStore
     } finally {
       finalClient.release();
     }
+  }
+
+  async backupSource(
+    claim: Parameters<SourceProcessingStore['backupSource']>[0],
+    input: Parameters<SourceProcessingStore['backupSource']>[1],
+  ): Promise<{ replayed: boolean }> {
+    if (this.backupStorage === undefined) throw new Error('BACKUP_STORAGE_MISSING');
+    const source = await this.loadProcessingSource(claim, 'PRIMARY');
+    const existing = await this.pool.query<{ object_key: string; sha256: string; state: string }>(
+      `select object_key, sha256, state from object_manifests
+        where source_generation_id = $1 and purpose = 'BACKUP' and replica = 0`,
+      [source.sourceGenerationId],
+    );
+    const replay = existing.rows[0];
+    if (replay !== undefined) {
+      if (
+        replay.object_key !== input.backupObjectKey ||
+        replay.sha256 !== source.actualSha256 ||
+        replay.state !== 'AVAILABLE'
+      ) {
+        throw new Error('IMMUTABLE_MANIFEST_MISMATCH');
+      }
+      await this.verifyObjectIn(
+        this.backupStorage,
+        input.backupObjectKey,
+        source.actualByteSize,
+        source.actualSha256,
+      );
+      return { replayed: true };
+    }
+    const body = await this.readProcessingObject(source, 52_428_800);
+    const orphan = await this.backupStorage.head(input.backupObjectKey);
+    if (orphan === undefined) {
+      await this.backupStorage.putImmutable(input.backupObjectKey, {
+        body,
+        contentType: source.declaredMediaType,
+        checksumSha256: Buffer.from(source.actualSha256, 'hex').toString('base64'),
+      });
+    }
+    await this.verifyObjectIn(
+      this.backupStorage,
+      input.backupObjectKey,
+      source.actualByteSize,
+      source.actualSha256,
+    );
+    const inserted = await this.pool.query(
+      `insert into object_manifests
+        (id, workspace_id, project_id, source_artifact_id, source_generation_id,
+         purpose, replica, object_key, byte_size, media_type, sha256, state, verified_at)
+       values ($1, $2, $3, $4, $5, 'BACKUP', 0, $6, $7, $8, $9, 'AVAILABLE', now())
+       on conflict (source_generation_id, purpose, replica) do nothing
+       returning id`,
+      [
+        input.backupManifestId,
+        source.workspaceId,
+        source.projectId,
+        source.sourceArtifactId,
+        source.sourceGenerationId,
+        input.backupObjectKey,
+        source.actualByteSize,
+        source.declaredMediaType,
+        source.actualSha256,
+      ],
+    );
+    return { replayed: (inserted.rowCount ?? 0) === 0 };
   }
 
   async commitNormalizedDocument(input: NormalizedDocumentCommitInput): Promise<{
@@ -960,7 +1068,6 @@ export class PostgresIngestionStore
     if (claim.sourceArtifactId === null || claim.sourceGenerationId === null) {
       throw new Error('DOCUMENT_JOB_SOURCE_MISSING');
     }
-    const expectedState = purpose === 'QUARANTINE' ? 'SCANNING' : 'PROCESSING';
     const result = await this.pool.query<{
       workspace_id: string;
       project_id: string;
@@ -987,15 +1094,17 @@ export class PostgresIngestionStore
           and om.source_generation_id = sg.id and om.source_artifact_id = sa.id
         where sa.workspace_id = $1 and sa.project_id = $2 and sa.id = $3
           and sg.id = $4 and sa.retention_state = 'ACTIVE'
-          and sa.processing_state = $5::source_processing_state
-          and om.purpose = $6::object_manifest_purpose and om.replica = 0
+          and (($5::object_manifest_purpose = 'QUARANTINE'
+                and sa.processing_state = 'SCANNING')
+            or ($5::object_manifest_purpose = 'PRIMARY'
+                and sa.processing_state in ('PROCESSING', 'SUCCEEDED')))
+          and om.purpose = $5::object_manifest_purpose and om.replica = 0
           and om.state = 'AVAILABLE'`,
       [
         claim.workspaceId,
         claim.projectId,
         claim.sourceArtifactId,
         claim.sourceGenerationId,
-        expectedState,
         purpose,
       ],
     );
@@ -1157,6 +1266,26 @@ export class PostgresIngestionStore
     expectedSha256: string,
   ): Promise<void> {
     const stream = await this.storage.get(objectKey);
+    if (stream === undefined) throw new Error('IMMUTABLE_OBJECT_MISSING');
+    const hash = createHash('sha256');
+    let byteSize = 0;
+    for await (const chunk of stream) {
+      byteSize += chunk.byteLength;
+      if (byteSize > expectedByteSize) throw new Error('IMMUTABLE_OBJECT_MISMATCH');
+      hash.update(chunk);
+    }
+    if (byteSize !== expectedByteSize || hash.digest('hex') !== expectedSha256) {
+      throw new Error('IMMUTABLE_OBJECT_MISMATCH');
+    }
+  }
+
+  private async verifyObjectIn(
+    storage: SourceUploadStorageGateway,
+    objectKey: string,
+    expectedByteSize: number,
+    expectedSha256: string,
+  ): Promise<void> {
+    const stream = await storage.get(objectKey);
     if (stream === undefined) throw new Error('IMMUTABLE_OBJECT_MISSING');
     const hash = createHash('sha256');
     let byteSize = 0;

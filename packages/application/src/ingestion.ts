@@ -35,6 +35,10 @@ export interface SourceUploadStorageGateway {
     destinationKey: string,
     input: Readonly<{ contentType: string; checksumSha256: string }>,
   ): Promise<void>;
+  putImmutable(
+    key: string,
+    input: Readonly<{ body: Uint8Array; contentType: string; checksumSha256: string }>,
+  ): Promise<void>;
   deleteMany(keys: readonly string[]): Promise<void>;
   delete(key: string): Promise<void>;
 }
@@ -57,6 +61,10 @@ export interface IngestionCommandStore {
     purgeReceiptId: string;
     correlationId: string;
   }): Promise<{ purged: boolean; manifestCount: number }>;
+  backupSource(
+    claim: DocumentJobClaim,
+    input: { backupManifestId: string; backupObjectKey: string },
+  ): Promise<{ replayed: boolean }>;
   commitNormalizedDocument(input: NormalizedDocumentCommitInput): Promise<{
     normalizedDocumentId: string;
     replayed: boolean;
@@ -134,6 +142,7 @@ export interface DocumentJobRepository {
     configVersion: string;
     correlationId: string;
     maximumAttempts?: number;
+    availableAt?: Date;
   }): Promise<{ id: string; replayed: boolean }>;
   claim(
     workerId: string,
@@ -189,4 +198,15 @@ export interface SourceProcessingStore {
     claim: DocumentJobClaim,
     input: { primaryManifestId: string; primaryObjectKey: string; detectedMediaType: string },
   ): Promise<{ replayed: boolean }>;
+  backupSource(
+    claim: DocumentJobClaim,
+    input: { backupManifestId: string; backupObjectKey: string },
+  ): Promise<{ replayed: boolean }>;
+  purgeSource(input: {
+    workspaceId: string;
+    projectId: string;
+    sourceArtifactId: string;
+    purgeReceiptId: string;
+    correlationId: string;
+  }): Promise<{ purged: boolean; manifestCount: number }>;
 }

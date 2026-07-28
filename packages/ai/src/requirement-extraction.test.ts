@@ -14,6 +14,7 @@ const input = {
   intakeSetId: 'intake',
   templateHash: digest('template'),
   workflowConfigHash: digest('fake-workflow'),
+  fields: [{ key: 'availability_uptime', label: 'Availability', valueType: 'long_text' as const }],
   blocks: [
     {
       id: 'block-1',
@@ -56,7 +57,7 @@ describe('Requirement extraction boundary', () => {
     expect(() =>
       validateExtraction(input, {
         schemaVersion: '1',
-        claims: [{ fieldKey: 'problem_summary', proposedValue: 'x', blockIds: ['foreign'] }],
+        claims: [{ fieldKey: 'availability_uptime', proposedValue: 'x', blockIds: ['foreign'] }],
         questions: [],
       }),
     ).toThrow('AI_CITATION_INVALID');

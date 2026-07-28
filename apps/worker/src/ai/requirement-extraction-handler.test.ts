@@ -42,6 +42,10 @@ function dependencies() {
         artifactId: '019c9f00-0000-7000-8000-000000000007',
         actorId: 'synthetic-actor',
         templateHash: 'b'.repeat(64),
+        fields: [
+          { key: 'project_objectives', label: 'Project objectives', valueType: 'long_text' },
+          { key: 'success_metrics', label: 'Success metrics', valueType: 'structured_list' },
+        ],
         blocks: [
           {
             id: '019c9f00-0000-7000-8000-000000000008',
@@ -195,6 +199,10 @@ describe('Requirement extraction job handler', () => {
       artifactId: '019c9f00-0000-7000-8000-000000000007',
       actorId: 'synthetic-actor',
       templateHash: 'b'.repeat(64),
+      fields: [
+        { key: 'project_objectives', label: 'Project objectives', valueType: 'long_text' },
+        { key: 'success_metrics', label: 'Success metrics', valueType: 'structured_list' },
+      ],
       blocks: [
         {
           id: '019c9f00-0000-7000-8000-000000000008',

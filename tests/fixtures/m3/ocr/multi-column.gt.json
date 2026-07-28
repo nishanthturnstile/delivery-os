@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1",
+  "fixtureVersion": "m3-ocr-synthetic-v1",
+  "format": "multi-column",
+  "sha256": "bf82dbe708c13117a3d2d0dc6b9d0382e2c40b47f6cb82f0217a6ada7262b97d",
+  "width": 1224,
+  "height": 1584,
+  "blocks": [
+    {
+      "text": "Project Status Dashboard",
+      "kind": "HEADING",
+      "critical": false,
+      "polygon": [
+        48,
+        52,
+        246,
+        52,
+        246,
+        69,
+        48,
+        69
+      ]
+    },
+    {
+      "text": "Design review for the authentication module is complete and pending sign-off from the security team",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        92,
+        697,
+        92,
+        697,
+        120,
+        48,
+        120
+      ]
+    },
+    {
+      "text": "Database migration scripts for the project registry schema are under active development",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        132,
+        612,
+        132,
+        612,
+        160,
+        48,
+        160
+      ]
+    },
+    {
+      "text": "Client portal wireframes have been shared with the design team for accessibility review",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        172,
+        610,
+        172,
+        610,
+        200,
+        48,
+        200
+      ]
+    },
+    {
+      "text": "Load testing for the OCR ingestion pipeline was conducted with twenty concurrent document jobs",
+      "kind": "PARAGRAPH",
+      "critical": true,
+      "polygon": [
+        48,
+        212,
+        678,
+        212,
+        678,
+        240,
+        48,
+        240
+      ]
+    }
+  ]
+}

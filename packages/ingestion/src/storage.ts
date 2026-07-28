@@ -147,7 +147,11 @@ export class S3CompatibleStorage implements ObjectStorage {
         ContentType: input.contentType,
         ChecksumSHA256: input.checksumSha256,
       }),
-      { expiresIn: input.expiresInSeconds },
+      {
+        expiresIn: input.expiresInSeconds,
+        unhoistableHeaders: new Set(['x-amz-checksum-sha256']),
+        signableHeaders: new Set(['content-type', 'x-amz-checksum-sha256']),
+      },
     );
   }
 

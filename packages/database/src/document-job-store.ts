@@ -14,8 +14,9 @@ export class PostgresDocumentJobRepository implements DocumentJobRepository {
       `with inserted as (
          insert into document_jobs
            (id, workspace_id, project_id, source_artifact_id, source_generation_id,
-            intake_set_id, job_type, input_hash, config_version, correlation_id, maximum_attempts)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            intake_set_id, job_type, input_hash, config_version, correlation_id, maximum_attempts,
+            available_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          on conflict (workspace_id, project_id, job_type, input_hash, config_version) do nothing
          returning id
        )
@@ -37,6 +38,7 @@ export class PostgresDocumentJobRepository implements DocumentJobRepository {
         input.configVersion,
         input.correlationId,
         input.maximumAttempts ?? 3,
+        input.availableAt ?? new Date(),
       ],
     );
     const row = result.rows[0];
