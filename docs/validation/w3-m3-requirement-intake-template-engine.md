@@ -3,8 +3,8 @@
 **Reviewed:** 2026-07-28
 **Owner:** Nishanth with Codex
 **Branch base revision:** `ab05c56610a404090c42dbd6cb599ac0cd9e45ed`
-**Reviewed implementation revision:** `7e42b65bb424b91517709725058a3af373951db2`
-**Exact deployed source revision:** `7e42b65bb424b91517709725058a3af373951db2`
+**Reviewed implementation revision:** `d52f81e12754ab958fb24d037f25d66e1c5e2e93`
+**Exact deployed source revision:** `d52f81e12754ab958fb24d037f25d66e1c5e2e93`
 **Plan:** [W3 M3 Requirement Intake & Template Engine](../planning/w3-m3-requirement-intake-template-engine.md)
 **External gates:** [W3 M3 external promotion and validation gates](../planning/decisions/w3-m3-external-promotion-and-validation-gates.md)
 **Roadmap authority:** [Implementation roadmap](../planning/implementation-roadmap.md)
@@ -67,7 +67,7 @@ gates.
   placeholders and cannot start backup/purge processors until backup-bucket credentials exist.
   The live primary R2 contract passed immutable put, full SHA-256 read, head, copy, presigned put,
   list, batch delete, and absence verification. Private ClamAV/OCR services have no public domains.
-  Exact web/worker revision `7e42b65bb424b91517709725058a3af373951db2` is the current staging
+  Exact web/worker revision `d52f81e12754ab958fb24d037f25d66e1c5e2e93` is the current staging
   candidate. OCR evaluation remains disabled for promotion because measured memory exceeded the
   approved ceiling.
 
@@ -96,22 +96,25 @@ gates.
 | `pnpm audit --prod --audit-level high` | Passed the High threshold; one Moderate vulnerability reported. |
 | Working-tree secret scan | Passed using pinned Gitleaks 8.30.0 in a container: approximately 4.16 MB scanned with no leak found. Full Git-history scan reported one redacted pre-existing historical finding; its content was not exposed or copied. |
 | Web/worker/OCR image scan | Passed Trivy 0.69.3 with zero fixed High/Critical findings. |
-| GitHub CI for implementation revision | Passed all 5 jobs in run `30345099765`: validate, secret scan, web image, worker image, and OCR image. |
+| GitHub CI for implementation revision | Passed all 5 jobs in run `30347566650`: validate, secret scan, web image, worker image, and OCR image. |
 | Railway migration/readiness | Passed: 11 migration records, six required M3 tables, and web readiness reported PostgreSQL and Redis up after the coordinated credential rotation. |
 
 ## Exact image and deployment evidence
 
 - Exact Railway web image:
-  `sha256:2a4a17e1a842c5fa6269deaa0f009b478ef40a5a3d415c79996e96edbbefad3e`
-  in successful deployment `29b4d363-d2a0-436b-a2f3-52a076064590`.
+  `sha256:adf5d573d2176c33e7c9fbff8b15beb7dc5314c0c60063847e10a62df6864f1d`
+  in successful deployment `5aa06f99-1643-4fe6-93dd-e83d85277730`.
 - Exact Railway worker image:
-  `sha256:272b739607a2ae4294a09d10faa925aa16db9283a411edfd2a50bec26eab533d`
-  in successful deployment `24062f16-0b6a-4c96-9e36-141bf2c2815a`.
+  `sha256:40047e3afa55deb03957795beff1312c4fabb1c956df2456847716741301c5bb`
+  in successful deployment `cc34a495-5094-4965-a977-bc758c827e6f`.
 - Current Railway OCR evaluation image:
   `sha256:414b83282f745d399fee73080368758b37bf3f5d5a34e6d052c9f737788139e7`.
   It is not promoted because measured memory breached 8 GiB. Evaluation and recognition switches
   were returned to `false` after the failed gate.
-- Current exact application deployments are the web and worker IDs above. The OCR image contains
+- Current exact application deployments are the web and worker IDs above. The first exact worker
+  deployment `ae77bcbb-4dba-49d6-b1b3-2a0c0d3ba719` failed closed because the injected provenance
+  key was not canonical 32-byte base64. The placeholder was replaced without printing it or writing
+  it to the repository; the replacement passed the worker health check. The OCR image contains
   implementation revision `9a91e8f609d3ab743ba00c705a1cceb58df940d9`; its post-evaluation
   fail-closed redeploy reuses the same image digest.
 - Post-credential-rotation deployments: web `8efaef2f-f943-448c-8f6d-d86cad8e6ff0`
@@ -211,7 +214,7 @@ Because these criteria are not satisfied, the Section 16 exit gate did not pass.
 ## Final source inventory
 
 The reviewed implementation and exact application deployment inventory is Git commit
-`7e42b65bb424b91517709725058a3af373951db2`. This is deployed synthetic-staging
+`d52f81e12754ab958fb24d037f25d66e1c5e2e93`. This is deployed synthetic-staging
 evidence, including promoted advisory AI, but it is not promoted OCR or M3 completion evidence. The
 user's unrelated staged
 `apps/web/next-env.d.ts` change was excluded from M3 and remains outside every M3 commit.
