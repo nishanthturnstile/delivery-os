@@ -106,19 +106,21 @@ async function scan(
     primaryObjectKey,
     detectedMediaType: detectedMediaType ?? source.declaredMediaType,
   });
-  await dependencies.jobs.enqueue({
-    id: uuidv7(),
-    workspaceId: claim.workspaceId,
-    projectId: claim.projectId,
-    sourceArtifactId: claim.sourceArtifactId,
-    sourceGenerationId: claim.sourceGenerationId,
-    intakeSetId: claim.intakeSetId,
-    jobType: 'BACKUP',
-    inputHash: claim.inputHash,
-    configVersion: 'r2-backup@1',
-    correlationId: claim.correlationId,
-    maximumAttempts: 5,
-  });
+  if (dependencies.backupEnabled) {
+    await dependencies.jobs.enqueue({
+      id: uuidv7(),
+      workspaceId: claim.workspaceId,
+      projectId: claim.projectId,
+      sourceArtifactId: claim.sourceArtifactId,
+      sourceGenerationId: claim.sourceGenerationId,
+      intakeSetId: claim.intakeSetId,
+      jobType: 'BACKUP',
+      inputHash: claim.inputHash,
+      configVersion: 'r2-backup@1',
+      correlationId: claim.correlationId,
+      maximumAttempts: 5,
+    });
+  }
   await dependencies.jobs.enqueue({
     id: uuidv7(),
     workspaceId: claim.workspaceId,

@@ -53,6 +53,8 @@ function dependencies(): {
   scan: ReturnType<typeof vi.fn<MalwareScanner['scan']>>;
   recognize: ReturnType<typeof vi.fn<OcrProvider['recognize']>>;
   commitOcr: ReturnType<typeof vi.fn<OcrPageResultStore['commit']>>;
+  backup: ReturnType<typeof vi.fn<SourceProcessingStore['backupSource']>>;
+  purge: ReturnType<typeof vi.fn<SourceProcessingStore['purgeSource']>>;
 } {
   const enqueue = vi.fn<DocumentJobRepository['enqueue']>().mockResolvedValue({
     id: 'next-job',
@@ -68,12 +70,19 @@ function dependencies(): {
   });
   const load = vi.fn<SourceProcessingStore['loadProcessingSource']>().mockResolvedValue(source);
   const read = vi.fn<SourceProcessingStore['readProcessingObject']>().mockResolvedValue(body);
+  const backup = vi.fn<SourceProcessingStore['backupSource']>().mockResolvedValue({
+    replayed: false,
+  });
+  const purge = vi.fn<SourceProcessingStore['purgeSource']>().mockResolvedValue({
+    purged: true,
+    manifestCount: 0,
+  });
   const store: SourceProcessingStore & Pick<IngestionCommandStore, 'commitNormalizedDocument'> = {
     loadProcessingSource: load,
     readProcessingObject: read,
     promoteScannedSource: promote,
-    backupSource: vi.fn().mockResolvedValue({ replayed: false }),
-    purgeSource: vi.fn().mockResolvedValue({ purged: true, manifestCount: 0 }),
+    backupSource: backup,
+    purgeSource: purge,
     commitNormalizedDocument: commit,
   };
   const jobs: DocumentJobRepository = {
@@ -115,6 +124,8 @@ function dependencies(): {
     scan,
     recognize,
     commitOcr,
+    backup,
+    purge,
   };
 }
 
@@ -141,6 +152,64 @@ describe('M3 document handlers', () => {
         inputHash: digest,
       }),
     );
+    expect(context.enqueue).not.toHaveBeenCalledWith(
+      expect.objectContaining({ jobType: 'BACKUP' }),
+    );
+  });
+
+  it('registers retry-safe backup and purge work only with separate backup storage', async () => {
+    const context = dependencies();
+    const enabled = { ...context.value, backupEnabled: true };
+    const handlers = createDocumentJobHandlers(enabled);
+    const scanHandler = handlers.find((candidate) => candidate.jobType === 'SCAN');
+    const backupHandler = handlers.find((candidate) => candidate.jobType === 'BACKUP');
+    const purgeHandler = handlers.find((candidate) => candidate.jobType === 'PURGE');
+    if (scanHandler === undefined || backupHandler === undefined || purgeHandler === undefined) {
+      throw new Error('BACKUP_HANDLER_MISSING');
+    }
+
+    await scanHandler.run(claim);
+    expect(context.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobType: 'BACKUP',
+        maximumAttempts: 5,
+      }),
+    );
+    await backupHandler.run({ ...claim, jobType: 'BACKUP' });
+    expect(context.backup).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceGenerationId: source.sourceGenerationId }),
+      expect.objectContaining({
+        backupObjectKey: 'backups/workspace/project/source/generation',
+      }),
+    );
+    await purgeHandler.run({ ...claim, jobType: 'PURGE' });
+    expect(context.purge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: source.workspaceId,
+        sourceArtifactId: source.sourceArtifactId,
+      }),
+    );
+  });
+
+  it('rejects backup and purge jobs without immutable source identity', async () => {
+    const context = dependencies();
+    const handlers = createDocumentJobHandlers({ ...context.value, backupEnabled: true });
+    const backupHandler = handlers.find((candidate) => candidate.jobType === 'BACKUP');
+    const purgeHandler = handlers.find((candidate) => candidate.jobType === 'PURGE');
+    if (backupHandler === undefined || purgeHandler === undefined) {
+      throw new Error('BACKUP_HANDLER_MISSING');
+    }
+    await expect(
+      backupHandler.run({
+        ...claim,
+        jobType: 'BACKUP',
+        sourceArtifactId: null,
+        sourceGenerationId: null,
+      }),
+    ).rejects.toThrow('DOCUMENT_JOB_SOURCE_MISSING');
+    await expect(
+      purgeHandler.run({ ...claim, jobType: 'PURGE', sourceArtifactId: null }),
+    ).rejects.toThrow('DOCUMENT_JOB_SOURCE_MISSING');
   });
 
   it('normalizes a manual text source without invoking OCR', async () => {
