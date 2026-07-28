@@ -8,6 +8,7 @@
   "include": [
     "eslint.config.mjs",
     "playwright.config.ts",
+    "scripts/**/*.ts",
     "vitest.config.ts",
     "vitest.setup.ts",
     "tests/**/*.ts"

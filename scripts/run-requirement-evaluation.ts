@@ -10,7 +10,7 @@ import {
 } from '@delivery-os/ai';
 
 type ValueType = 'short_text' | 'long_text' | 'string_list' | 'structured_list' | 'date' | 'enum';
-type Fixture = {
+interface Fixture {
   schemaVersion: '1';
   fixtureVersion: 'm3-requirements-synthetic-v1';
   dataClassification: 'SYNTHETIC';
@@ -24,7 +24,7 @@ type Fixture = {
   goldClaims: { fieldKey: string; blockId: string; requiredTerms: string[] }[];
   conflicts: { fieldKey: string; critical: boolean }[];
   adversarialBlockIds: string[];
-};
+}
 
 const argumentsMap = new Map(
   process.argv
@@ -80,14 +80,16 @@ if (apiKey === undefined || apiKey.trim() === '')
 let inputTokens = 0;
 let outputTokens = 0;
 const budget: RequirementBudgetGate = {
-  assertAvailable: async ({ workflowConfigHash, maxRunCostUsd }) => {
+  assertAvailable: ({ workflowConfigHash, maxRunCostUsd }) => {
     if (workflowConfigHash !== config.configHash || maxRunCostUsd > 1) {
-      throw new Error('AI_BUDGET_POLICY_MISMATCH');
+      return Promise.reject(new Error('AI_BUDGET_POLICY_MISMATCH'));
     }
+    return Promise.resolve();
   },
-  recordUsage: async (usage) => {
+  recordUsage: (usage) => {
     inputTokens += usage.inputTokens;
     outputTokens += usage.outputTokens;
+    return Promise.resolve();
   },
 };
 const extractionInput = {
@@ -140,9 +142,11 @@ for (const claim of result.claims) {
       gold.requiredTerms.every((term) => value.includes(term.toLocaleLowerCase('en-US'))),
   );
   if (matchIndex >= 0) {
+    const matchedClaim = fixture.goldClaims.at(matchIndex);
+    if (matchedClaim === undefined) throw new Error('AI_EVALUATION_GOLD_CLAIM_MISSING');
     supportedClaims += 1;
     matchedGold.add(matchIndex);
-    if (!claim.blockIds.includes(fixture.goldClaims[matchIndex]!.blockId)) attributionLoss += 1;
+    if (!claim.blockIds.includes(matchedClaim.blockId)) attributionLoss += 1;
   }
   if (claim.blockIds.some((blockId) => fixture.adversarialBlockIds.includes(blockId))) {
     safetyFailures += 1;
