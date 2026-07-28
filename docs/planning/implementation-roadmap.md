@@ -382,14 +382,23 @@ artifact schemas.
 
 **Blocker opened:** 2026-07-26
 
-**Clearing condition:** Record and promote the approved OCR and AI configurations through two
-accepted frozen evaluations; provision the authorized private primary/backup R2 storage; verify the
-already provisioned private scanner/OCR staging topology at the exact revision; pass the
-exact-revision security, audience, every-format, accessibility, restore/purge, twenty-job load, and
-operational checks; verify or rotate the historical credential; and link stable sanitized
-deployment evidence. See
+**Clearing condition:** Resolve the OCR resource/model decision after the current candidate measured
+`12.564 GiB` against the approved `8 GiB` ceiling, configure an enforceable OCR IPv4 egress deny and
+the chosen Railway replica limit, then pass two new accepted frozen OCR evaluations. Add a separate
+backup-bucket credential to the worker and pass exact-revision backup/restore/purge, every-format,
+security, audience, accessibility, twenty-job load/backpressure, and operational checks. Verify or
+rotate the historical credential and link stable sanitized deployment evidence. OpenAI Requirement
+evaluation and primary R2 provisioning/integration are complete but do not clear the remaining
+gates. See
 [the external promotion and validation gates](decisions/w3-m3-external-promotion-and-validation-gates.md)
 and [the validation record](../validation/w3-m3-requirement-intake-template-engine.md).
+
+**Current progress (2026-07-28):** Two consecutive accepted OpenAI frozen Requirement evaluations
+passed and the advisory extraction switches are enabled in synthetic staging. Private primary and
+backup R2 buckets exist and the primary live contract passed. Earlier OCR “green” results were
+invalidated because they used hard-coded operational measurements. Truthful exact-image evaluation
+preserved accuracy and latency but Railway measured a `12.564 GiB` peak, so OCR recognition remains
+disabled and no valid pair of promotion runs exists.
 
 **Objective:** Turn authorized source files into a cited, human-approved Requirement baseline with
 explicit conflicts and gaps.
